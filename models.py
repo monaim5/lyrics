@@ -12,6 +12,7 @@ class Song(object):
         # self.id = input('This song\'s id is : ')
         self.path = song_path
         self.title = self.path.stem
+        self.tags = input('This song\'s tags is : ')
         self._lyrics_path = lyrics_path
         self.lyrics_dir = lyrics_dir / self.title
         # self.save()
