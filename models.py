@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
-
-from paths import lyrics_dir, aep_temp_dir, videos_dir, lyrics_client_secrets, lyrics_yt_credentials
+# from paths import lyrics_dir, backgrounds_dir, aep_temp_dir, videos_dir, lyrics_client_secrets, lyrics_yt_credentials
+from paths import Dir, File
 from config import Database
 
 db = Database('ncs_arabi')
@@ -12,28 +12,37 @@ class Song(object):
         # self.id = input('This song\'s id is : ')
         self.path = song_path
         self.title = self.path.stem
-        self.tags = input('This song\'s tags is : ')
+        # self.tags = input('This song\'s tags is : ')
+        self.tags = ""
         self._lyrics_path = lyrics_path
-        self.lyrics_dir = lyrics_dir / self.title
+        self.lyrics_dir = Dir.lyrics_dir.value / self.title
         # self.save()
+
+    @property
+    def has_background(self):
+        return bool(Dir.backgrounds_dir.value.glob(f'{self.title}.jpg'))
+
+    @property
+    def background(self):
+        return (Dir.backgrounds_dir.value / self.title).with_suffix('.jpg')
 
     @property
     def lyrics_path(self):
         if not self.lyrics_dir.exists():
             self.lyrics_dir.mkdir()
-        return lyrics_dir / self.title / 'lyrics.json' if self._lyrics_path is None else self._lyrics_path
+        return Dir.lyrics_dir.value / self.title / 'lyrics.json' if self._lyrics_path is None else self._lyrics_path
 
     @property
     def lyrics_map_path(self):
-        return lyrics_dir / self.title / 'lyrics_map.json'
+        return Dir.lyrics_dir.value / self.title / 'lyrics_map.json'
 
     @property
     def video_path(self):
-        return videos_dir / (self.title + '.mp4')
+        return Dir.videos_dir.value / (self.title + '.mp4')
 
     @property
     def aep_path(self):
-        return aep_temp_dir / (self.title + ' [lyrics].aep')
+        return Dir.aep_temp_dir.value / (self.title + ' [lyrics].aep')
 
     @property
     def has_video(self):
@@ -52,8 +61,8 @@ class Song(object):
 class Channel:
     def __init__(self, name):
         self.name = name
-        self.yt_credentials = lyrics_yt_credentials
-        self.client_secrets = lyrics_client_secrets
+        self.yt_credentials = File.lyrics_yt_credentials.value
+        self.client_secrets = File.lyrics_client_secrets.value
         self.category = 'Music'
         self.publish_time = datetime.time(15, 0, 0)
         self.publish_days = {1, 3, 5}

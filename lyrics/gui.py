@@ -3,6 +3,8 @@ import time
 import tkinter as tk
 import pygame
 
+from models2 import MapLyrics
+
 
 def play_sound(path):
     pygame.mixer.init()
@@ -33,11 +35,13 @@ class Button(tk.Button):
 
 
 class MappingConsole(tk.Frame):
-    def __init__(self, parent, song):
+    def __init__(self, parent, lyrics, lyrics_map, song):
         tk.Frame.__init__(self, parent)
-        with open(song.lyrics_path, 'r', encoding='utf-8') as f:
-            self.lyrics = json.load(f)
-        self.lyrics_map_path = song.lyrics_map_path
+        self.song = song
+        self.lyrics = lyrics
+        self.lyrics_map = lyrics_map
+        with open(self.lyrics.path, 'r', encoding='utf-8') as f:
+            self.lyrics_content = json.load(f)
         self.line_index = 0
         self.start_time = 0
         self.space_pressed = False
@@ -60,7 +64,7 @@ class MappingConsole(tk.Frame):
 
     def get_lyrics_text(self):
         text = ''
-        for line in self.lyrics:
+        for line in self.lyrics_content:
             text += f'{line["text_en"]}  |  {line["text_ar"]}\n'
         return text
 
@@ -68,7 +72,7 @@ class MappingConsole(tk.Frame):
         if not self.space_pressed:
             try:
                 self.text.tag_add('current_line', '%s.0' % (self.line_index + 1), '%s.0-1c' % (self.line_index + 2))
-                line = self.lyrics[self.line_index]
+                line = self.lyrics_content[self.line_index]
                 line_inf = {'line': self.line_index,
                             'text_en': line['text_en'],
                             'text_ar': line['text_ar'],
@@ -78,7 +82,7 @@ class MappingConsole(tk.Frame):
                 self.space_pressed = True
 
             except IndexError:
-                with open(self.lyrics_map_path, 'w+', encoding='utf-8') as f:
+                with open(self.lyrics_map.path, 'w+', encoding='utf-8') as f:
                     json.dump(self.generate_lyrics, f, ensure_ascii=False, sort_keys=True, indent=2)
                     print('writen')
                 stop_sound()
@@ -109,9 +113,9 @@ class MappingConsole(tk.Frame):
 
 
 class AdjustmentConsole(tk.Frame):
-    def __init__(self, parent, song):
+    def __init__(self, parent, song, map_lyrics: MapLyrics):
         tk.Frame.__init__(self, parent)
-        self.lyrics_map_path = song.lyrics_map_path
+        self.lyrics_map_path = map_lyrics.path
         self.song_path = song.path
         self.lyrics_map = None
         self.set_lyrics_map()

@@ -1,12 +1,12 @@
 import json
 import sqlite3
-from paths import root, json_uploaded_to_lyrics
+from paths import Dir, File
 
 
 class Database:
     def __init__(self, db):
         self.__connection = None
-        self.host = root / f'databases/{db}.db'
+        self.host = Dir.root.value / f'databases/{db}.db'
 
     def get_connection(self):
         if self.__connection is not None:
@@ -82,7 +82,7 @@ def configure_data():
     db.config_database()
     conn = db.get_connection()
     cursor = conn.cursor()
-    with open(json_uploaded_to_lyrics) as f:
+    with open(File.json_uploaded_to_lyrics.value) as f:
         uploaded_to_lyrics = json.load(f)
 
     for v in uploaded_to_lyrics:

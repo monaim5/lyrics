@@ -8,13 +8,14 @@ from bs4 import BeautifulSoup
 import tkinter as tk
 
 from lyrics.gui import MappingConsole, AdjustmentConsole
-from models import Song
-from paths import chrome_driver, chrome_binary, lyrics_dir
+from models2 import Song, Lyrics, MapLyrics
+from paths import Binary
 
 
-def get_lyrics(song: Song):
-    if song.lyrics_path.exists():
-        return True
+def get_lyrics(song: Song) -> Lyrics:
+    lyrics_ = Lyrics(song)
+    if lyrics_.exists_in_db():
+        return lyrics_
 
     headers = {
         "Host": "www.musixmatch.com",
@@ -30,8 +31,8 @@ def get_lyrics(song: Song):
     q = re.sub('\[.*\]|\.', '', title).strip().replace(' ', '%20')
     url = f'https://www.musixmatch.com/search/{q}'
     chrome_options = webdriver.ChromeOptions()
-    chrome_options.binary_location = chrome_binary.__str__()
-    driver = webdriver.Chrome(executable_path=chrome_driver.__str__(), chrome_options=chrome_options)
+    chrome_options.binary_location = Binary.chrome_binary.value.__str__()
+    driver = webdriver.Chrome(executable_path=Binary.chrome_driver.value.__str__(), chrome_options=chrome_options)
     driver.get(url)
     driver.find_element_by_xpath(
         '//*[@id="search-all-results"]/div[1]/div[1]/div[2]/div/ul/li/div/div[2]/div/h2/a') \
@@ -57,19 +58,22 @@ def get_lyrics(song: Song):
             lyrics.append({'text_en': text_en, 'text_ar': text_ar})
             i += 1
 
+    if not lyrics_.path.parent.exists():
+        lyrics_.path.parent.mkdir()
 
-        with open(song.lyrics_path, 'w+', encoding='utf-8') as f:
-            json.dump(lyrics, f, ensure_ascii=False, sort_keys=True, indent=2)
+    with open(lyrics_.path, 'w+', encoding='utf-8') as f:
+        json.dump(lyrics, f, ensure_ascii=False, sort_keys=True, indent=2)
+    return lyrics_
 
-    return True
 
+def map_lyrics(lyrics: Lyrics, song: Song) -> MapLyrics:
+    map_lyrics_ = MapLyrics(lyrics)
+    if lyrics.map_lyrics is not None and lyrics.map_lyrics.file_exists:
+        return map_lyrics_
 
-def map_lyrics(song: Song):
-    if song.lyrics_map_path.exists():
-        return True
     root = tk.Tk()
     root.title('lyrics <press space when after you heard the first word')
-    console = MappingConsole(root, song)
+    console = MappingConsole(root, lyrics, map_lyrics_, song)
     root.bind('<space>', console.on_space_press)
     root.bind('<KeyRelease-space>', console.on_space_release)
     root.bind('<BackSpace>', console.on_backspace_press)
@@ -78,12 +82,13 @@ def map_lyrics(song: Song):
     root.focus_force()
     console.start_time = time.perf_counter()
     root.mainloop()
+    return map_lyrics_
 
 
-def adjust_lyrics(song: Song):
+def adjust_lyrics(song: Song, map_lyrics_: MapLyrics):
     root = tk.Tk()
     root.title('adjust lyrics')
-    adjustment_console = AdjustmentConsole(root, song)
+    adjustment_console = AdjustmentConsole(root, song, map_lyrics_)
     adjustment_console.pack()
     root.focus_force()
     root.mainloop()
