@@ -1,4 +1,5 @@
 import datetime
+import json
 import re
 import shutil
 from ast import literal_eval, parse
@@ -12,13 +13,14 @@ from sqlalchemy.orm import sessionmaker, relationship, Session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.exc import NoResultFound
 
-from paths import Dir, File, Binary, Other
+from paths import Dir, File, Binary
 
 # from config import Config, Color
 # from mutagen.mp3 import MP3
 
 Base = declarative_base()
 engine = create_engine(f'sqlite:///{Binary.sqlite_db.value}')
+TEST = False
 
 __all__ = [
     'get_session',
@@ -64,8 +66,8 @@ class get_session:
 class MyBase:
 
     def add(self, session, *, flush=False, commit=False, expire=False):
-        # try:
-        session.add(self)
+        if not self.exists_in_db():
+            session.add(self)
         if flush:
             session.flush()
         if commit:
@@ -91,13 +93,16 @@ class MyBase:
     def select(cls, session, id_):
         return session.query(cls).filter_by(id=id_).one()
 
-    def archive(self, session):
-        new_path = self.path.parent / 'archive' / self.path.name
+    def archive(self, session, *, flush=False, commit=False):
+        # new_path = self.path.parent / 'archive' / self.path.name
         try:
-            shutil.move(self.path, new_path)
-            self.path = new_path
+            # shutil.move(self.path, new_path)
+            # self.path = new_path
             self.archived = True
-            session.commit()
+            if flush:
+                session.flush()
+            if commit:
+                session.commit()
         except FileNotFoundError:
             print('file not found maybe it was archived already')
             return
@@ -206,14 +211,16 @@ class Lyrics(Base, MyBase):
     __tablename__ = 'lyrics'
     id = Column('id', Integer, primary_key=True)
     song_id = Column(String, ForeignKey('songs.id'))
+    archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
 
     song = relationship("Song", uselist=False)
     map_lyrics = relationship("MapLyrics", uselist=False)
 
     def __init__(self, song: Song):
-        self.song_id = song.id
-        self.path = Dir.lyrics_dir.value / self.title / 'lyrics.json'
+        self.song = song
+        self.path = Dir.lyrics_dir.value / song.title / 'lyrics.json'
+        self.archived = None
 
     @property
     def path(self) -> Path:
@@ -245,15 +252,13 @@ class Lyrics(Base, MyBase):
 
 class MapLyrics(Base, MyBase):
     __tablename__ = 'map_lyrics'
-    id = Column('id', Integer, primary_key=True)
-    lyrics_id = Column(Integer, ForeignKey('lyrics.id'))
+    id = Column('id', Integer, ForeignKey('lyrics.id'), primary_key=True)
     __path = Column('path', String)
 
     lyrics = relationship('Lyrics', uselist=False)
-    aep = relationship('AEP', uselist=False)
 
     def __init__(self, lyrics: Lyrics):
-        self.lyrics_id = lyrics.id
+        self.lyrics = lyrics
         self.path = lyrics.path.parent / 'map_lyrics.json'
 
     @property
@@ -268,27 +273,29 @@ class MapLyrics(Base, MyBase):
 class AEP(Base, MyBase):
     __tablename__ = 'aeps'
     id = Column('id', Integer, primary_key=True)
-    song_id = Column(String, ForeignKey('songs.id'))
+    # song_id = Column(String, ForeignKey('songs.id'))
     background_id = Column(Integer, ForeignKey('backgrounds.id'))
-    map_lyrics_id = Column(Integer, ForeignKey('map_lyrics.id'))
-    # color = Column('color', Enum(Color))
+    lyrics_id = Column(Integer, ForeignKey('lyrics.id'))
+    color = Column('color', String)
     archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
     __template_path = Column('template_path', String)
+    __script_path = Column('script_path', String)
 
-    song = relationship("Song", uselist=False)
+    # song = relationship("Song", uselist=False)
     background = relationship("Background", uselist=False)
-    map_lyrics = relationship("MapLyrics", uselist=False)
+    lyrics = relationship("Lyrics", uselist=False)
     video = relationship("Video", uselist=False)
     render_queue_item = relationship("RenderQueue", uselist=False)
 
-    def __init__(self, song: Song, map_lyrics: MapLyrics, background: Background, color):
-        self.song_id = song.id
-        self.map_lyrics_id = map_lyrics.id
-        self.background_id = background.id
+    def __init__(self, lyrics: Lyrics, background: Background, color):
+        # self.song_id = song.id
+        self.lyrics = lyrics
+        self.background = background
         self.color = color
-        self.path = Dir.aep_temp_dir.value / (song.filename.replace("'", ' ') + '.aep')
-        self.template_path = Other.lyrics_template.value
+        self.path = Dir.aep_temp_dir.value / (lyrics.song.filename.replace("'", ' ') + '.aep')
+        self.template_path = File.lyrics_template.value if not TEST else File.lyrics_template_test.value
+        self.script_path = File.lyrics_script_path.value if not TEST else File.lyrics_script_path_test.value
         self.archived = None
 
     @property
@@ -299,6 +306,13 @@ class AEP(Base, MyBase):
     def path(self, value: Path):
         self.__path = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
+    @property
+    def script_path(self) -> Path:
+        return Dir.root.value / self.__script_path
+
+    @script_path.setter
+    def script_path(self, value: Path):
+        self.__script_path = value.relative_to(Dir.root.value).__str__()
     # @property
     # def path(self) -> Path:
     #     return Dir.root.value / self.__path
@@ -318,20 +332,20 @@ class AEP(Base, MyBase):
 
 class RenderQueue(Base, MyBase):
     __tablename__ = 'render_queue'
-    id = Column('id', Integer, primary_key=True)
-    aep_id = Column(Integer, ForeignKey('aeps.id'))
-    # priority = Column('priority', Integer)
+    id = Column('id', Integer, ForeignKey('aeps.id'), primary_key=True)
+    # priority = Co lumn('priority', Integer)
     # added_date = Column('added_date', Date)
     aep = relationship("AEP", uselist=False)
 
     def __init__(self, aep: AEP):
-        self.aep_id = aep.id
+        self.aep = aep
 
 
 class Video(Base, MyBase):
     __tablename__ = 'videos'
     id = Column('id', Integer, primary_key=True)
-    aep_id = Column(Integer, ForeignKey('aeps.id'))
+    aep_id = Column(Integer, ForeignKey('aeps.id'), unique=True)
+    title = Column('title', String)
     archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
 
@@ -340,9 +354,11 @@ class Video(Base, MyBase):
     uploaded_video = relationship("UploadedVideo", uselist=False)
 
     def __init__(self, aep):
-        self.aep_id = aep.id
+        self.aep = aep
+        self.title = aep.lyrics.song.title
         self.path = Dir.videos_dir.value / (aep.path.stem + '.mp4')
         self.archived = None
+
     @property
     def path(self) -> Path:
         return Dir.root.value / self.__path if self.__path is not None else None
@@ -448,28 +464,49 @@ class UploadQueue(Base, MyBase):
     channel = relationship("Channel", uselist=False)
 
     def __init__(self, video: Video, channel: Channel):
-        self.channel_id = channel.id
-        self.video_id = video.id
+        self.channel = channel
+        self.video = video
 
 
 class UploadedVideo(Base, MyBase):
     __tablename__ = 'uploaded_videos'
     id = Column('id', Integer, primary_key=True)
     video_id = Column(Integer, ForeignKey('videos.id'))
-    title = Column('title', String)
     channel_id = Column(String, ForeignKey('channels.id'))
-    yt_video_id = Column('youtube_id', String)
+    title = Column('title', String)
+    description = Column('description', String)
+    tags = Column('tags', JSON)
     published_date = Column('published_date', Date)
+    yt_video_id = Column('youtube_id', String)
 
     video = relationship("Video", uselist=False)
     channel = relationship("Channel", uselist=False)
 
     def __init__(self, video, channel):
-        self.video_id = video.id
-        self.channel_id = channel.id
-        self.title = video.aep.map_lyrics.lyrics.song.title
-        self.yt_video_id = None
+        self.video = video
+        self.channel = channel
+        self.title = None
+        self.description = None
+        self.tags = None
         self.published_date = None
+        self.yt_video_id = None
+
+    def add_to_uploaded_to_lyrics(self):
+        try:
+            original_song = self.video.aep.lyrics.song
+            with open(File.json_uploaded_to_lyrics.value) as f:
+                videos = json.load(f)
+            videos.append({
+                'original': original_song.id,
+                'lyrics': self.yt_video_id,
+                'original_title': original_song.title,
+                'new_title': self.title
+            })
+            with open(File.json_uploaded_to_lyrics.value, 'w') as f:
+                json.dump(videos, f, sort_keys=True, indent=2)
+        except Exception as e:
+            print(e.__class__)
+            print(e)
 
 
 def migrate():

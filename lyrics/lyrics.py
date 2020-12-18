@@ -68,7 +68,7 @@ def get_lyrics(song: Song) -> Lyrics:
 
 def map_lyrics(lyrics: Lyrics, song: Song) -> MapLyrics:
     map_lyrics_ = MapLyrics(lyrics)
-    if lyrics.map_lyrics is not None and lyrics.map_lyrics.file_exists:
+    if map_lyrics_.file_exists:
         return map_lyrics_
 
     root = tk.Tk()

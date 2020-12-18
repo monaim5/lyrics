@@ -25,11 +25,13 @@ class File(Enum):
     json_uploaded_to_lyrics = Dir.root.value / 'assets/uploaded_to_lyrics.json'
 
     lyrics_script_path = Dir.root.value / 'assets/aep/scripts/to_lyrics.jsx'
+    lyrics_script_path_test = Dir.root.value / 'assets/aep/scripts/to_lyrics_test.jsx'
+
+    lyrics_template = Dir.root.value / 'assets/AEP/templates/to_lyrics.aep'
+    lyrics_template_test = Dir.root.value / 'assets/AEP/templates/to_lyrics_test.aep'
+
+    log_file = Dir.root.value / 'assets/logging.log'
 
     # # must be in database
     # lyrics_yt_credentials = Dir.root.value / 'assets/credentials/lyrics_yt_credentials.json'
     # lyrics_client_secrets = Dir.root.value / 'assets/credentials/lyrics_client_secrets.json'
-
-
-class Other(Enum):
-    lyrics_template = Dir.root.value / 'assets/AEP/templates/to_lyrics.aep'
