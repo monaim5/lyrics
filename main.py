@@ -71,12 +71,11 @@ from video.utils import download_background, create_aep, render_aep, upload_vide
 #         os.system('shutdown -s')
 
 
-def register_songs_process(session):
+def register_songs_process(session, song_urls):
     """adding songs to database. songs located in songs directory
     :param session: The current database connection
     :type session: sqlalchemy.orm.session.Session
     """
-    song_urls = ['https://www.youtube.com/watch?v=ztvIhqVtrrw']
     added_songs = 0
     for song_id in song_urls:
         song = Song(song_id)
@@ -88,45 +87,44 @@ def register_songs_process(session):
 
 
 def download_songs_process(session):
-    songs = session.query(Song).all()
+    songs = session.query(Song).filter_by(downloaded=False).all()
     for song in songs:
-        if not song.file_exists:
-            download_song(song).add(session, commit=True)
+        download_song(song).add(session, commit=True)
 
 
-def register_backgrounds_process(session):
-    # TODO implemet background function must add field url /replace path by url
-    backgrounds = [
-        'https://c4.wallpaperflare.com/wallpaper/410/867/750/vector-forest-sunset-forest-sunset-forest-wallpaper-preview.jpg',
-        'https://c4.wallpaperflare.com/wallpaper/30/586/460/artwork-fantasy-art-digital-art-forest-wallpaper-thumb.jpg']
+def register_backgrounds_process(session, background_urls):
     backgrounds_added = 0
 
-    for bg in backgrounds:
-        background = Background(bg)
+    for url in background_urls:
+        background = Background(url)
         if background.exists_in_db(url=background.url):
             continue
-        # if background.exists():
-        #     continue
-        download_background(background).add(session, commit=True)
+        background.add(session, commit=True)
         backgrounds_added += 1
     print(f'{backgrounds_added} background has been added to database')
 
 
-def get_lyrics_process(session):
-    sub_query = session.query(MapLyrics.lyrics_id)
-    map_lyrics_list = session.query(Lyrics).filter(~Lyrics.id.in_(sub_query)).all()
+def download_backgrounds_process(session):
+    backgrounds = session.query(Background).filter_by(downloaded=False).all()
+    for bg in backgrounds:
+        download_background(bg).add(session, commit=True)
 
-    for lyrics in map_lyrics_list:
+
+def map_lyrics_process(session):
+    sub_query = session.query(MapLyrics.lyrics_id)
+    lyrics_list = session.query(Lyrics).filter(~Lyrics.id.in_(sub_query)).all()
+
+    for lyrics in lyrics_list:
         song = lyrics.song
         map_lyrics(lyrics, song).add(session, commit=True)
 
 
-def map_lyrics_process(session):
+def get_lyrics_process(session):
     sub_query = session.query(Lyrics.song_id)
-    lyrics_list = session.query(Song).filter(~Song.id.in_(sub_query)).all()
+    songs = session.query(Song).filter(~Song.id.in_(sub_query)).all()
 
-    for lyrics in lyrics_list:
-        get_lyrics(lyrics).add(session, commit=True)
+    for song in songs:
+        get_lyrics(song).add(session, commit=True)
 
 
 def create_aeps_process(session):
@@ -155,7 +153,7 @@ def create_aeps_process(session):
 
     bg_used = session.query(AEP.background_id)
     backgrounds = session.query(Background).filter(Background.id.notin_(bg_used)).all()
-    print(map_lyrics_havnt_aep)
+
     for map_lyrics, background in zip(map_lyrics_havnt_aep, backgrounds):
         color = '#123456'
         song = map_lyrics.lyrics.song
@@ -219,8 +217,11 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
                     condition.wait()
 
             upload_queue_item = upload_queue.get()
-            if upload_queue_item is None:
+            if upload_queue_item in (True, False):
                 print('upload videos done')
+                if upload_queue_item:
+                    import os
+                    os.system('shutdown -s')
                 return
             upload_queue_item = session.merge(upload_queue_item)
             video, channel = upload_queue_item.video, upload_queue_item.channel
@@ -243,7 +244,8 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
 def main():
     queue = Queue()
     condition = Condition()
-
+    songs_urls = ['https://www.youtube.com/watch?v=Y2Lu0o3S2sU']
+    backgrounds_urls = ['https://r4.wallpaperflare.com/wallpaper/610/259/809/women-samurai-katana-artwork-wallpaper-a4aa02025d5e77e2b14042e58602e560.jpg']
     with get_session() as session:
         uploading_process = Process(target=upload_video_process, args=(queue, condition))
         upload_queue = session.query(UploadQueue).all()
@@ -252,10 +254,12 @@ def main():
             queue.put(item)
         if input('parallel videos upload? (y, n) (default n) : ') == 'y':
             uploading_process.start()
+        shutdown = input('shutdown pc at the end of process? (y, n) (default n)') in ('y', 'yes')
 
         try:
-            register_backgrounds_process(session)
-            register_songs_process(session)
+            register_backgrounds_process(session, backgrounds_urls)
+            register_songs_process(session, songs_urls)
+            download_backgrounds_process(session)
             download_songs_process(session)
             get_lyrics_process(session)
             map_lyrics_process(session)
@@ -263,7 +267,7 @@ def main():
             render_aeps_process(session=session, queue=queue, condition=condition)
 
         finally:
-            queue.put(None)
+            queue.put(shutdown)
             with condition:
                 condition.notify_all()
 

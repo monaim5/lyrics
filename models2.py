@@ -6,7 +6,7 @@ from pathlib import Path
 from enum import Enum as NativeEnum
 from typing import List
 
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Numeric, Date, Time, func, Enum
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date, Time, func, JSON, Boolean
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, relationship, Session
 from sqlalchemy.ext.declarative import declarative_base
@@ -77,8 +77,8 @@ class MyBase:
         #     session.refresh()
         #     # print(duplicated_field)
 
-    def add_or_update(self, session, *, flush=False, commit=False, expire=False):
-        session._save_or_update_impl(self)
+    # def add_or_update(self, session, *, flush=False, commit=False, expire=False):
+    #     session._save_or_update_impl(self)
 
     def delete(self, session, *, flush=False, commit=False):
         session.delete(self)
@@ -96,6 +96,7 @@ class MyBase:
         try:
             shutil.move(self.path, new_path)
             self.path = new_path
+            self.archived = True
             session.commit()
         except FileNotFoundError:
             print('file not found maybe it was archived already')
@@ -125,6 +126,8 @@ class Background(Base, MyBase):
     id = Column('id', Integer, primary_key=True)
     url = Column('url', String, unique=True)
     filename = Column('filename', String)
+    downloaded = Column('downloaded', Boolean, default=False)
+    archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
 
     aep = relationship("AEP")
@@ -133,6 +136,7 @@ class Background(Base, MyBase):
         self.url = url
         self.filename = None
         self.path = None
+        self.archived = None
 
     @property
     def path(self) -> Path:
@@ -154,6 +158,7 @@ class Background(Base, MyBase):
     #     with get_session() as session:
     #         return session.query(Background).filter(Background.title == self.title).scalar()
 
+
 def get_yt_id(url):
     match = re.search(r"youtube\.com/.*v=([^&]*)", url)
     if match:
@@ -168,8 +173,10 @@ class Song(Base, MyBase):
     url = Column('url', String)
     title = Column('title', String)
     filename = Column('filename', String)
-    tags = Column('tags', String)
+    tags = Column('tags', JSON)
     credit = Column('credit', String)
+    downloaded = Column('downloaded', Boolean, default=False)
+    archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
     # duration = Column('duration', Numeric)
 
@@ -182,6 +189,8 @@ class Song(Base, MyBase):
         self.path = None
         self.description = None
         self.credit = None
+        self.downloaded = None
+        self.archived = None
 
     @property
     def path(self) -> Path:
@@ -197,24 +206,22 @@ class Lyrics(Base, MyBase):
     __tablename__ = 'lyrics'
     id = Column('id', Integer, primary_key=True)
     song_id = Column(String, ForeignKey('songs.id'))
-    title = Column('title', String)
     __path = Column('path', String)
 
     song = relationship("Song", uselist=False)
     map_lyrics = relationship("MapLyrics", uselist=False)
 
     def __init__(self, song: Song):
-        self.title = f'{song.title} [lyrics]'
         self.song_id = song.id
         self.path = Dir.lyrics_dir.value / self.title / 'lyrics.json'
 
     @property
     def path(self) -> Path:
-        return Dir.root.value / self.__path
+        return Dir.root.value / self.__path if self.__path is not None else None
 
     @path.setter
     def path(self, value: Path):
-        self.__path = value.relative_to(Dir.root.value).__str__()
+        self.__path = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
     # @property
     # def path(self):
@@ -232,32 +239,30 @@ class Lyrics(Base, MyBase):
     # def flp_path(self, value: Path):
     #     self.__flp_path = value.relative_to(Dir.root.value).__str__()
 
-    def exists(self):
-        return bool(self.path.stat().st_size) if self.path.exists() else False
+    # def exists(self):
+    #     return bool(self.path.stat().st_size) if self.path.exists() else False
 
 
 class MapLyrics(Base, MyBase):
     __tablename__ = 'map_lyrics'
     id = Column('id', Integer, primary_key=True)
     lyrics_id = Column(Integer, ForeignKey('lyrics.id'))
-    title = Column('title', String)
     __path = Column('path', String)
 
     lyrics = relationship('Lyrics', uselist=False)
     aep = relationship('AEP', uselist=False)
 
     def __init__(self, lyrics: Lyrics):
-        self.title = f'{lyrics.title} [Maplyrics]'
         self.lyrics_id = lyrics.id
         self.path = lyrics.path.parent / 'map_lyrics.json'
 
     @property
     def path(self) -> Path:
-        return Dir.root.value / self.__path
+        return Dir.root.value / self.__path if self.__path is not None else None
 
     @path.setter
     def path(self, value: Path):
-        self.__path = value.relative_to(Dir.root.value).__str__()
+        self.__path = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
 
 class AEP(Base, MyBase):
@@ -267,6 +272,7 @@ class AEP(Base, MyBase):
     background_id = Column(Integer, ForeignKey('backgrounds.id'))
     map_lyrics_id = Column(Integer, ForeignKey('map_lyrics.id'))
     # color = Column('color', Enum(Color))
+    archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
     __template_path = Column('template_path', String)
 
@@ -281,16 +287,17 @@ class AEP(Base, MyBase):
         self.map_lyrics_id = map_lyrics.id
         self.background_id = background.id
         self.color = color
-        self.path = Dir.aep_temp_dir.value / (song.filename + '.aep')
+        self.path = Dir.aep_temp_dir.value / (song.filename.replace("'", ' ') + '.aep')
         self.template_path = Other.lyrics_template.value
+        self.archived = None
 
     @property
     def path(self) -> Path:
-        return Dir.root.value / self.__path
+        return Dir.root.value / self.__path if self.__path is not None else None
 
     @path.setter
     def path(self, value: Path):
-        self.__path = value.relative_to(Dir.root.value).__str__()
+        self.__path = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
     # @property
     # def path(self) -> Path:
@@ -324,8 +331,8 @@ class RenderQueue(Base, MyBase):
 class Video(Base, MyBase):
     __tablename__ = 'videos'
     id = Column('id', Integer, primary_key=True)
-    title = Column('title', String)
     aep_id = Column(Integer, ForeignKey('aeps.id'))
+    archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
 
     aep = relationship("AEP", uselist=False)
@@ -334,16 +341,15 @@ class Video(Base, MyBase):
 
     def __init__(self, aep):
         self.aep_id = aep.id
-        self.path = Dir.videos.value / (aep.song.filename + '.mp4')
-        self.title = aep.song.title
-
+        self.path = Dir.videos_dir.value / (aep.path.stem + '.mp4')
+        self.archived = None
     @property
     def path(self) -> Path:
-        return Dir.root.value / self.__path
+        return Dir.root.value / self.__path if self.__path is not None else None
 
     @path.setter
     def path(self, value: Path):
-        self.__path = value.relative_to(Dir.root.value).__str__()
+        self.__path = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
     # @property
     # def path(self):
@@ -359,8 +365,7 @@ class Video(Base, MyBase):
 
 class Channel(Base, MyBase):
     __tablename__ = 'channels'
-    id = Column('id', Integer, primary_key=True)
-    yt_channel_id = Column('yt_channel_id', String)
+    id = Column('id', String, primary_key=True)
     name = Column('name', String)
     __yt_credentials = Column('yt_credentials', String)
     __client_secrets = Column('client_secrets', String)
@@ -373,7 +378,7 @@ class Channel(Base, MyBase):
 
     def __init__(self, name, channel_id, yt_credentials, client_secrets):
         self.name = name
-        self.yt_channel_id = channel_id
+        self.id = channel_id
         self.yt_credentials = yt_credentials
         self.client_secrets = client_secrets
         self.category = 'Music'
@@ -437,7 +442,7 @@ class UploadQueue(Base, MyBase):
     __tablename__ = 'upload_queue'
     id = Column('id', Integer, primary_key=True)
     video_id = Column(Integer, ForeignKey('videos.id'))
-    channel_id = Column(Integer, ForeignKey('channels.id'))
+    channel_id = Column(String, ForeignKey('channels.id'))
 
     video = relationship("Video", uselist=False)
     channel = relationship("Channel", uselist=False)
@@ -452,7 +457,7 @@ class UploadedVideo(Base, MyBase):
     id = Column('id', Integer, primary_key=True)
     video_id = Column(Integer, ForeignKey('videos.id'))
     title = Column('title', String)
-    channel_id = Column(Integer, ForeignKey('channels.id'))
+    channel_id = Column(String, ForeignKey('channels.id'))
     yt_video_id = Column('youtube_id', String)
     published_date = Column('published_date', Date)
 
@@ -462,6 +467,9 @@ class UploadedVideo(Base, MyBase):
     def __init__(self, video, channel):
         self.video_id = video.id
         self.channel_id = channel.id
+        self.title = video.aep.map_lyrics.lyrics.song.title
+        self.yt_video_id = None
+        self.published_date = None
 
 
 def migrate():
@@ -470,11 +478,13 @@ def migrate():
 
 def main():
     migrate()
+    lyrics_yt_credentials = Dir.root.value / 'assets/credentials/lyrics_yt_credentials.json'
+    lyrics_client_secrets = Dir.root.value / 'assets/credentials/lyrics_client_secrets.json'
     channel = Channel(
         'ncs arabi',
         'UCLbsLjqzPKBLa7kzlEmfCXA',
-        File.lyrics_yt_credentials.value,
-        File.lyrics_client_secrets.value
+        lyrics_yt_credentials,
+        lyrics_client_secrets
     )
     with get_session() as session:
         session.add(channel)

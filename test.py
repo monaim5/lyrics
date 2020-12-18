@@ -1,4 +1,3 @@
-
-
-s = 'hellp baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaitch ssss'
-print(s[-9:-4])
+shutdown = 'True'
+if shutdown in (True, False):
+    print('hello')

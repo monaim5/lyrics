@@ -14,10 +14,10 @@ class Dir(Enum):
 
 class Binary(Enum):
     sqlite_db = Dir.root.value / 'databases/ncs_arabi.db'
-    chrome_binary = r'C:\Program Files\Google\Chrome\Application\chrome.exe'
-    chrome_driver = 'chromedriver.exe'
-    afterfx_com = 'c:/Program Files/Adobe/Adobe After Effects CS6/Support Files/afterfx.com'
-    aerender = 'c:/Program Files/Adobe/Adobe After Effects CS6/Support Files/aerender.exe'
+    chrome_binary = Path(r'C:\Program Files\Google\Chrome\Application\chrome.exe')
+    chrome_driver = Path('chromedriver.exe')
+    afterfx_com = Path('c:/Program Files/Adobe/Adobe After Effects CS6/Support Files/afterfx.com')
+    aerender = Path('c:/Program Files/Adobe/Adobe After Effects CS6/Support Files/aerender.exe')
 
 
 class File(Enum):
@@ -26,9 +26,9 @@ class File(Enum):
 
     lyrics_script_path = Dir.root.value / 'assets/aep/scripts/to_lyrics.jsx'
 
-    # must be in database
-    lyrics_yt_credentials = Dir.root.value / 'assets/credentials/lyrics_yt_credentials.json'
-    lyrics_client_secrets = Dir.root.value / 'assets/credentials/lyrics_client_secrets.json'
+    # # must be in database
+    # lyrics_yt_credentials = Dir.root.value / 'assets/credentials/lyrics_yt_credentials.json'
+    # lyrics_client_secrets = Dir.root.value / 'assets/credentials/lyrics_client_secrets.json'
 
 
 class Other(Enum):

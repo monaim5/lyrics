@@ -14,7 +14,7 @@ from paths import Binary
 
 def get_lyrics(song: Song) -> Lyrics:
     lyrics_ = Lyrics(song)
-    if lyrics_.exists_in_db():
+    if lyrics_.file_exists:
         return lyrics_
 
     headers = {

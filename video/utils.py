@@ -2,13 +2,17 @@ import json
 import re
 import shutil
 import subprocess
+from datetime import datetime
+from pathlib import Path
 from urllib import request, parse
 
 import requests
 from models import Song
-from models2 import MapLyrics, Background, AEP
+from models2 import MapLyrics, Background, AEP, Video, UploadedVideo
 from paths import Dir, File, Binary
 from youtube_upload.main import main as yt_main
+
+from utils import Bcolors
 
 
 def effects(shadow, stroke, glass):
@@ -18,13 +22,15 @@ def effects(shadow, stroke, glass):
 
 
 def download_background(background):
+    assert len(background.url) > 40
     background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
+    if background.file_exists:
+        return background
 
     def get_bg_from_wallpaperflare():
         res = requests.get(background.url, stream=True)
         with open(background.path, 'wb') as out_file:
             shutil.copyfileobj(res.raw, out_file)
-        print(background)
         return background
 
     def get_bg_from_reddit():
@@ -68,6 +74,7 @@ def download_background(background):
         else:
             return False
 
+    background.downloaded = True
     return main()
 
 
@@ -76,12 +83,12 @@ def create_aep(song: Song, map_lyrics: MapLyrics, background: Background, color)
     if aep.file_exists:
         return aep
 
-    payload = []
     content = {
-        'title': map_lyrics.title,
-        'song_path': song.path.resolve().__str__(),
-        'background_path': background.path.resolve().__str__(),
-        'lyrics_map_path': map_lyrics.path.resolve().__str__(),
+        'aep_path': aep.path.__str__(),
+        'song_path': song.path.__str__(),
+        'background_path': background.path.__str__(),
+        'lyrics_map_path': map_lyrics.path.__str__(),
+        'template_path': aep.template_path.__str__(),
         'color': color,
         'offset_time': 0.12,  # 0.2
         'max_fade_duration': 0.7,
@@ -97,31 +104,36 @@ def create_aep(song: Song, map_lyrics: MapLyrics, background: Background, color)
                                     stroke=False,
                                     glass={'color': [255, 5, 18]})}
     }
-    payload.append(content)
 
     with open(File.json_bridge.value, 'w+') as f:
-        json.dump(payload, f, sort_keys=True, indent=2)
+        json.dump(content, f, sort_keys=True, indent=2)
     # script = r'C:\Users\mon\Documents\lyrics\assets\AEP\scripts\to_lyrics.jsx'
-    print(File.lyrics_script_path.value.resolve().__str__())
     subprocess.call([Binary.afterfx_com.value, '-r', File.lyrics_script_path.value.resolve().__str__()])
     return aep
 
 
-def render_aep(song: Song):
-    if song.has_video:
-        return True
+def render_aep(aep: AEP):
+    video = Video(aep)
+    if video.file_exists:
+        return video
 
-    print(song.video_path)
-    subprocess.call(
-        [Binary.aerender.value,
-         '-project', song.aep_path.resolve().__str__(),
-         '-OMtemplate', 'H.264',
-         '-comp', 'Comp',
-         '-output', song.video_path.resolve().__str__(),
-         ])
+    print(aep.path)
+    print(video.path)
+    subprocess.call([
+        Binary.aerender.value,
+        # '-project', f'"{aep_path}"',
+        '-project', f'"{aep.path}"',
+        '-OMtemplate', 'H.264',
+        '-comp', 'Comp',
+        # '-output', r'"C:\Users\mon\Documents\lyrics\assets\AEP\temp\UnknownBrain.mp4"'
+        '-output', f'"{video.path}"'
+    ])
 
 
-def upload_video(song, channel, **kwargs):
+def upload_video(video: Video, channel, **kwargs):
+    # edited the youtube_upload.main.run_main and youtube_upload.main.main
+    # by adding (video_ids: list) for return it at the end, by the main function
+
     # arguments = [
     #     '--title=%s' % title,
     #     '--description=%s' % description,
@@ -132,22 +144,42 @@ def upload_video(song, channel, **kwargs):
     #     '--credentials-file=%s' % self.yt_credentials,
     #     video_path
     # ]
+
+    uploaded_video = UploadedVideo(video, channel)
     arguments = []
+
     for arg in kwargs:
         arguments.append(f'--{arg.replace("_", "-")}={kwargs.get(arg)}')
     arguments.extend((f'--client-secrets={channel.client_secrets}',
                       f'--credentials-file={channel.yt_credentials}',
-                      f'--publish-at={channel.next_publish_date()}'))
-    arguments.append(song.video_path.__str__())
+                      f'--category={channel.category}'))
+    arguments.append(video.path.__str__())
 
-    video_ids = yt_main(arguments)
+    uploaded_video.published_date = kwargs['publish_at'] if kwargs['publish_at'] is not None else datetime.now()
 
+    upload_try = 1
+    while upload_try <= 3:
+        try:
+            print(f'{Bcolors.WARNING.value}{Bcolors.BOLD.value}the {upload_try} try{Bcolors.ENDC.value}')
+            uploaded_video.yt_video_id = yt_main(arguments)[0]
+            add_to_uploaded_to_lyrics(uploaded_video)
+            return uploaded_video
+
+        except ConnectionResetError as e:
+            upload_try += 1
+            print(f'try {upload_try} {e.__class__} : {e}')
+
+    raise ConnectionResetError
+
+
+def add_to_uploaded_to_lyrics(uploaded_video: UploadedVideo):
+    original_song = uploaded_video.video.aep.map_lyrics.lyrics.song.id
     with open(File.json_uploaded_to_lyrics.value) as f:
         videos = json.load(f)
     videos.append({
-        'original': '',
-        'lyrics': video_ids[0],
-        'title': song.title
+        'original': original_song.id,
+        'lyrics': uploaded_video.yt_video_id,
+        'title': original_song.title
     })
     with open(File.json_uploaded_to_lyrics.value, 'w') as f:
         json.dump(videos, f, sort_keys=True, indent=2)

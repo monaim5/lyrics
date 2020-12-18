@@ -1,7 +1,10 @@
 import re
 
+import json
+from enum import Enum
 
-class bcolors:
+
+class Bcolors(Enum):
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKCYAN = '\033[96m'
@@ -29,6 +32,11 @@ def get_yt_id(url):
         raise Exception('no id in url')
 
 
+def get_credit(desc):
+    result = re.search('Track:(.|\n)*- -', desc)
+    return str(result.group(0)) if result else ''
+
+
 def download_song(song) -> Song:
     download_options = {
         'format': 'bestaudio/best',
@@ -42,12 +50,18 @@ def download_song(song) -> Song:
     }
 
     with YoutubeDL(download_options) as youtube:
-        youtube.download([song.url])
         info = youtube.extract_info(song.url)
+
         song.title = info.get('title')
         song.path = Path(youtube.filename.replace('webm', 'mp3'))
         song.description = info.get('description')
-        # song.credit=get_credit(info.get('description')),
+        song.tags = info.get('tags')
+        song.credit = get_credit(info.get('description'))
         song.channel_name = info.get('channel')
         song.channel_id = info.get('channel_id')
+
+        if not song.file_exists:
+            youtube.download([song.url])
+        song.downloaded = True
+
     return song
