@@ -9,69 +9,6 @@ from video.utils import *
 import logging
 
 logging.basicConfig(filename=File.log_file.value, level=logging.INFO)
-# test = True
-
-# from models import Song, Channel
-# from models2 import Song, Channel
-# from paths import songs_dir, backgrounds_dir
-# from utils import bcolors, download_song
-
-# fix duration in adobe after script (to_lyrics.jsx)
-# change file_name to filename
-# adapt with background not with bg_ext
-# songs = songs_dir.glob('*.mp3')
-# channel = Channel('ncs_arabi')
-# with get_session() as session:
-#     url = 'https://www.youtube.com/watch?v=ztvIhqVtrrw'
-#     song =
-#     song = download_song(session, url)
-#     lyrics = get_lyrics(session, song)
-#     map_lyrics = map_lyrics(session, lyrics, song)
-#     print(map_lyrics.id)
-#     adjust_lyrics(song, map_lyrics)
-#     exit()
-# aep = create_aep(song, background, map_lyrics, '#519dc9')
-# video = render_aep(aep)
-# uploaded_video = upload_video(video)
-#
-# print(song)
-# exit()
-#
-# def up_vid():
-#     upload_try = 1
-#     try:
-#         print(f'{bcolors.WARNING}{bcolors.BOLD}the {upload_try} try{bcolors.ENDC}')
-#         upload_video(song,
-#                      channel=channel,
-#                      title=generate_title(song),
-#                      description=generate_desc(song),
-#                      tags=generate_tags(song),
-#                      category='Music')
-#     except ConnectionResetError as e:
-#         upload_try += 1
-#         print('An existing connection was forcibly closed by the remote host')
-#         up_vid()
-#
-#
-# for song_path in songs:
-#     url = 'https://r4.wallpaperflare.com/wallpaper/979/531/766/the-witcher-3-wild-hunt-wallpaper-fb06bc9dc321ef89f5647b09ed2c3c00.jpg'
-#
-#
-#     exit()
-#     # song = Song(song_path, )
-#     image_path = download_background(url, song.title) if not song.has_background else song.background
-#     # get_lyrics(song)
-#
-#     # map_lyrics(song)
-#     # adjust_lyrics(song)
-#
-#     # create_aep(song, image_path, '#519dc9')
-#     render_aep(song)
-#     try:
-#         up_vid()
-#     finally:
-#         import os
-#         os.system('shutdown -s')
 
 
 def register_songs_process(session, song_urls):
@@ -82,7 +19,7 @@ def register_songs_process(session, song_urls):
     added_songs = 0
     for song_id in song_urls:
         song = Song(song_id)
-        if song.exists_in_db():
+        if song.exists_in_db(session):
             continue
         song.add(session, commit=True)
         added_songs += 1
@@ -100,7 +37,7 @@ def register_backgrounds_process(session, background_urls):
 
     for url in background_urls:
         background = Background(url)
-        if background.exists_in_db(url=background.url):
+        if background.exists_in_db(session, url=background.url):
             continue
         background.add(session, commit=True)
         backgrounds_added += 1
@@ -133,8 +70,8 @@ def map_lyrics_process(session):
     lyrics_list = session.query(Lyrics).filter(Lyrics.archived == 0).all()
 
     for lyrics in lyrics_list:
-        song = lyrics.song
-        map_lyrics(lyrics, song)
+        map_lyrics_ = map_lyrics(lyrics)
+        # adjust_lyrics(map_lyrics_)
 
 
 def register_aeps_process(session):
@@ -163,7 +100,7 @@ def create_aeps_process(session):
 
     for aep in aeps2 + aeps1:
         aep = create_aep(aep)
-        RenderQueue(aep).add(session, commit=True)
+        RenderQueue(aep).add(session, commit=True, id=aep.id)
 
 
 def render_aeps_process(session, queue: Queue, condition: Condition):
@@ -254,11 +191,9 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
 def main():
     queue = Queue()
     condition = Condition()
-    songs_urls = ['https://www.youtube.com/watch?v=Y2Lu0o3S2sU',
-                  'https://www.youtube.com/watch?v=C6IaUMAg3Dc']
+    songs_urls = ['https://www.youtube.com/watch?v=Y2Lu0o3S2sU']
     backgrounds_urls = [
-        'https://r4.wallpaperflare.com/wallpaper/610/259/809/women-samurai-katana-artwork-wallpaper-a4aa02025d5e77e2b14042e58602e560.jpg',
-        'https://www.pexels.com/photo/white-and-blue-boat-on-sea-under-blue-sky-5615627/'
+        'https://r4.wallpaperflare.com/wallpaper/610/259/809/women-samurai-katana-artwork-wallpaper-a4aa02025d5e77e2b14042e58602e560.jpg'
     ]
     with get_session() as session:
         uploading_process = Process(target=upload_video_process, args=(queue, condition))

@@ -65,8 +65,8 @@ class get_session:
 
 class MyBase:
 
-    def add(self, session, *, flush=False, commit=False, expire=False):
-        if not self.exists_in_db():
+    def add(self, session, *, flush=False, commit=False, expire=False, **kwargs):
+        if not self.exists_in_db(session, **kwargs):
             session.add(self)
         if flush:
             session.flush()
@@ -107,13 +107,12 @@ class MyBase:
             print('file not found maybe it was archived already')
             return
 
-    def exists_in_db(self, **kwargs):
+    def exists_in_db(self, session, **kwargs):
         if kwargs:
             fields = kwargs
         else:
             fields = {'id': self.id}
-        with get_session() as session:
-            return session.query(self.__class__).filter_by(**fields).scalar()
+        return session.query(self.__class__).filter_by(**fields).scalar()
 
     @property
     def file_exists(self):
@@ -177,6 +176,7 @@ class Song(Base, MyBase):
     id = Column('id', String, primary_key=True)
     url = Column('url', String)
     title = Column('title', String)
+    audio_bitrate = Column('audio_bitrate', Integer)
     filename = Column('filename', String)
     tags = Column('tags', JSON)
     credit = Column('credit', String)
@@ -190,6 +190,7 @@ class Song(Base, MyBase):
     def __init__(self, url):
         self.url = url
         self.id = get_yt_id(url)
+        self.audio_bitrate = None
         self.title = None
         self.path = None
         self.description = None

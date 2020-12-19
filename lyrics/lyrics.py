@@ -66,14 +66,14 @@ def get_lyrics(song: Song) -> Lyrics:
     return lyrics_
 
 
-def map_lyrics(lyrics: Lyrics, song: Song) -> MapLyrics:
+def map_lyrics(lyrics: Lyrics) -> MapLyrics:
     map_lyrics_ = MapLyrics(lyrics)
     if map_lyrics_.file_exists:
         return map_lyrics_
 
     root = tk.Tk()
     root.title('lyrics <press space when after you heard the first word')
-    console = MappingConsole(root, lyrics, map_lyrics_, song)
+    console = MappingConsole(root, lyrics, map_lyrics_, lyrics.song)
     root.bind('<space>', console.on_space_press)
     root.bind('<KeyRelease-space>', console.on_space_release)
     root.bind('<BackSpace>', console.on_backspace_press)
@@ -85,10 +85,10 @@ def map_lyrics(lyrics: Lyrics, song: Song) -> MapLyrics:
     return map_lyrics_
 
 
-def adjust_lyrics(song: Song, map_lyrics_: MapLyrics):
+def adjust_lyrics(map_lyrics_: MapLyrics):
     root = tk.Tk()
     root.title('adjust lyrics')
-    adjustment_console = AdjustmentConsole(root, song, map_lyrics_)
+    adjustment_console = AdjustmentConsole(root, map_lyrics_.lyrics.song, map_lyrics_)
     adjustment_console.pack()
     root.focus_force()
     root.mainloop()

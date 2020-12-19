@@ -25,12 +25,6 @@ __all__ = [
 ]
 
 
-def effects(shadow, stroke, glass):
-    return {'shadow': shadow,
-            'stroke': stroke,
-            'glass': glass}
-
-
 def download_background(background):
     assert len(background.url) > 40
     background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
@@ -88,6 +82,33 @@ def download_background(background):
     return main()
 
 
+def effects(**kwargs):
+    return kwargs
+
+
+def white_theme(**kwargs):
+    return effects(font_color=[0, 0, 0],
+                   shadow={'color': [0, 0, 0], 'animation': False},
+                   stroke={'color': [0, 0, 0], 'width': 4},
+                   glass={'color': [255, 5, 18]},
+                   **kwargs)
+
+
+def black_theme(**kwargs):
+    return effects(font_color=[0, 0, 0],
+                   shadow=False,
+                   stroke={'color': [1, 1, 1], 'width': 4},
+                   glass=False,
+                   **kwargs)
+
+
+def black_theme_logo(**kwargs):
+    return effects(shadow=False, stroke=False, glass={'color': [255, 5, 18]}, invert=True, **kwargs)
+
+
+def black_them_spectrum(**kwargs):
+    return effects(color='#000000', **kwargs)
+
 def create_aep(aep: AEP):
     if aep.file_exists:
         return aep
@@ -98,20 +119,14 @@ def create_aep(aep: AEP):
         'background_path': aep.background.path.__str__(),
         'lyrics_map_path': aep.lyrics.map_lyrics.path.__str__(),
         'template_path': aep.template_path.__str__(),
-        'color': aep.color,
         'offset_time': 0.12,  # 0.2
         'max_fade_duration': 0.7,
-        'effects': {'arabic_text': effects(shadow={'color': [0, 0, 0], 'animation': False},
-                                           stroke={'color': [0, 0, 0], 'width': 3},
-                                           glass={'color': [255, 5, 18]}),
-
-                    'english_text': effects(shadow={'color': [0, 0, 0], 'animation': False},
-                                            stroke={'color': [0, 0, 0], 'width': 3},
-                                            glass={'color': [255, 5, 18]}),
-
-                    'logo': effects(shadow=False,
-                                    stroke=False,
-                                    glass={'color': [255, 5, 18]})}
+        'effects': {
+            'arabic_text': black_theme(font='bader_al-yadawi', spacing=5),
+            'latin_text': black_theme(font='OptimusPrinceps'),
+            'logo': black_theme_logo(),
+            'spectrum': black_them_spectrum()
+        }
     }
 
     with open(File.json_bridge.value, 'w+') as f:
@@ -192,11 +207,11 @@ def generate_title(title: str):
 def generate_tags(title, tags) -> list:
     original_tags = tags if tags is not None else []
     # original_tags = original_tags.split(',') if tags is not None else []
-    additional_tags = ['"ncs arabi"', '"أغاني انجليزية مترجمة"', '"كلمات مترجمة"', '"كلمات انجليزية"',
-                       '"أغاني انجليزية ومعناها بالعربي"', '"تعلم انجليزية"', '"تعلم الانجليزية بالأغاني"',
-                       '"NCS lyrics"', '"اغاني انجليزية سهلة الحفظ للاطفال"', '"اغاني انجليزية حماسية"', '"مترجم"',
-                       '"ncs"', '"اغنية حماسية اجنبية 2020"', '"اغاني انجليزية مشهورة 2020"',
-                       '"اغاني انجليزية مشهورة"', '"اغاني انجليزية لتعلم اللغة"']
+    additional_tags = ['ncs arabi', 'أغاني انجليزية مترجمة', 'كلمات مترجمة', 'كلمات انجليزية',
+                       'أغاني انجليزية ومعناها بالعربي', 'تعلم انجليزية', 'تعلم الانجليزية بالأغاني',
+                       'NCS lyrics', 'اغاني انجليزية سهلة الحفظ للاطفال', 'اغاني انجليزية حماسية', 'مترجم',
+                       'ncs', 'اغنية حماسية اجنبية 2020', 'اغاني انجليزية مشهورة 2020',
+                       'اغاني انجليزية مشهورة', 'اغاني انجليزية لتعلم اللغة']
 
     new_tags = original_tags + additional_tags
     tags_length = 0

@@ -1,7 +1,9 @@
 import re
-
-import json
 from enum import Enum
+from pathlib import Path
+from youtube_dl import YoutubeDL
+from models2 import Song
+from paths import Dir
 
 
 class Bcolors(Enum):
@@ -14,14 +16,6 @@ class Bcolors(Enum):
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-
-from pathlib import Path
-
-from youtube_dl import YoutubeDL
-
-from models2 import Song
-from paths import Dir
 
 
 def get_yt_id(url):
@@ -51,8 +45,8 @@ def download_song(song) -> Song:
 
     with YoutubeDL(download_options) as youtube:
         info = youtube.extract_info(song.url)
-
         song.title = info.get('title')
+        song.audio_bitrate = info.get('abr')
         song.path = Path(youtube.filename.replace('webm', 'mp3'))
         song.description = info.get('description')
         song.tags = info.get('tags')

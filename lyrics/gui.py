@@ -1,12 +1,14 @@
 import json
 import time
 import tkinter as tk
+
 import pygame
 
 from models2 import MapLyrics
 
 
 def play_sound(path):
+    # pygame.mixer.pre_init(frequency=46100)
     pygame.mixer.init()
     pygame.mixer.music.load(path.__str__())
     pygame.mixer.music.play()
@@ -117,6 +119,7 @@ class AdjustmentConsole(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.lyrics_map_path = map_lyrics.path
         self.song_path = song.path
+        self.audio_bitrate = song.audio_bitrate
         self.lyrics_map = None
         self.set_lyrics_map()
         self.current_index = 0
@@ -193,12 +196,15 @@ class AdjustmentConsole(tk.Frame):
         self.save.grid(row=0, column=3)
         self.quit.grid(row=0, column=4)
 
-        self.bind('<Left>', self.on_left_arrow_press)
-        self.bind('<Right>', self.on_right_arrow_press)
-        self.bind('<space>', self.on_space_press)
-        self.bind('<Control_L>', lambda event: self.repeat_line())
-        self.start_time_entry.bind('<space>', self.on_space_press)
-        self.start_time_entry.bind('<space>', self.on_space_press)
+        self.master.bind('<Left>', self.on_left_arrow_press)
+        self.master.bind('<.>', self.on_left_arrow_press)
+        self.master.bind('<Right>', self.on_right_arrow_press)
+        self.master.bind('<,>', self.on_right_arrow_press)
+        self.master.bind('<z>', lambda x: self.add_to_start_time(-0.01))
+        self.master.bind('<x>', lambda x: self.add_to_start_time(0.01))
+        self.master.bind('<space>', self.on_space_press)
+        self.master.bind('<Control_L>', lambda event: self.repeat_line())
+        self.master.bind('<space>', self.on_space_press)
 
         play_sound(self.song_path)
         self.update_current_line()
@@ -209,7 +215,8 @@ class AdjustmentConsole(tk.Frame):
             self.lyrics_map = json.load(f)
 
     def set_sound_pos(self, pos):
-        pygame.mixer.music.play(start=pos)
+        pygame.mixer.music.play(start=pos, )
+        self.paused = False
         self.added_time = pos
 
     def get_sound_pos(self):
@@ -226,7 +233,6 @@ class AdjustmentConsole(tk.Frame):
         self.start_time.set(self.lyrics_map[self.current_index]['start'])
         self.end_time.set(self.lyrics_map[self.current_index]['end'])
         self.set_sound_pos(self.lyrics_map[self.current_index]['start'] - 1)
-        self.focus()
 
     def sync_bold_text(self):
         if self.get_sound_pos() > self.end_time.get():
@@ -254,18 +260,15 @@ class AdjustmentConsole(tk.Frame):
             print('no more lines under line 1')
 
     def add_to_start_time(self, t):
-        self.start_time.set(self.start_time.get() + t)
+        self.start_time.set(round(self.start_time.get() + t, 2))
         self.lyrics_map[self.current_index]['start'] = self.start_time.get()
 
     def add_to_end_time(self, t):
-        self.end_time.set(self.end_time.get() + t)
+        self.end_time.set(round(self.end_time.get() + t, 2))
         self.lyrics_map[self.current_index]['end'] = self.end_time.get()
 
     def play_pause(self):
-        if self.paused:
-            unpause_sound()
-        else:
-            pause_sound()
+        unpause_sound() if self.paused else pause_sound()
         self.paused = not self.paused
 
     def repeat_line(self):
