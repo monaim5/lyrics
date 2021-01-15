@@ -1,7 +1,8 @@
 import json
-import os
 import re
 import time
+
+from google_trans_new import google_translator
 from selenium import webdriver
 import requests
 from bs4 import BeautifulSoup
@@ -45,6 +46,7 @@ def get_lyrics(song: Song) -> Lyrics:
     row = soup.select('.mxm-translatable-line-readonly .row')
     lyrics = []
     i = 1
+    translator = google_translator()
     for line in row:
         if line.select('div')[0] is not None and len(line.select('div')[0].text) > 1:
             text_en = line.select('div')[0].text
@@ -53,7 +55,7 @@ def get_lyrics(song: Song) -> Lyrics:
         if line.select_one('.text-right') is not None and len(line.select_one('.text-right').text) > 1:
             text_ar = line.select_one('.text-right').text
         else:
-            text_ar = '/'
+            text_ar = translator.translate(text_en, lang_tgt='ar').strip()
         if text_en != '/' or text_ar != '/':
             lyrics.append({'text_en': text_en, 'text_ar': text_ar})
             i += 1
@@ -92,3 +94,4 @@ def adjust_lyrics(map_lyrics_: MapLyrics):
     adjustment_console.pack()
     root.focus_force()
     root.mainloop()
+

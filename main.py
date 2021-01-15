@@ -4,9 +4,11 @@ from multiprocessing import Process, Condition, Queue
 from lyrics.lyrics import get_lyrics, map_lyrics, adjust_lyrics
 from models2 import get_session, Song, Background, Lyrics, AEP, MapLyrics, RenderQueue, Channel, UploadQueue, Video
 from paths import File
-from utils import download_song
+from utils import download_song, Color
 from video.utils import *
 import logging
+
+from video.utils import comment_to_origin, generate_comment_from_lyrics
 
 logging.basicConfig(filename=File.log_file.value, level=logging.INFO)
 
@@ -79,18 +81,14 @@ def register_aeps_process(session):
     backgrounds = session.query(Background).filter(Background.archived == 0) \
         .filter(Background.id.notin_(session.query(AEP.background_id))).all()
     for lyrics, background in zip(lyrics_havnt_aep, backgrounds):
-        color = '#123456'
+        color = Color.YELLOW.value
         aep = AEP(lyrics, background, color)
         aep.add(session, commit=True)
 
 
 def create_aeps_process(session):
     """
-    creating adobe after effects projects (aep) from 8d songs :
-    which they have an aep but not rendered as video and not in render queue
-        -> [query used : songs_not_in_rq_and_vid]
-    which basically have not an aep
-        -> [query used : songs_havnt_aep]
+    creating adobe after effects projects (aep)
     :param session: The current database connection
     :type session: sqlalchemy.orm.session.Session
     """
@@ -179,6 +177,14 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
                                               description=generate_desc(song.title, song.credit),
                                               tags=generate_tags(song.title, song.tags),
                                               publish_at=channel.next_publish_date(session))
+                try:
+                    comment_to_origin(channel.token_path,
+                                      generate_comment_from_lyrics(song.lyrics.path),
+                                      song.id)
+                except Exception as e:
+                    print(e.__class__)
+                    print(e)
+
                 uploaded_video.add(session=session, commit=True)
                 video.archive(session, flush=True)
                 upload_queue_item.delete(session, commit=True)
@@ -191,9 +197,11 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
 def main():
     queue = Queue()
     condition = Condition()
-    songs_urls = ['https://www.youtube.com/watch?v=Y2Lu0o3S2sU']
+    songs_urls = [
+        'https://www.youtube.com/watch?v=PbEGWtcUnK0'
+    ]
     backgrounds_urls = [
-        'https://r4.wallpaperflare.com/wallpaper/610/259/809/women-samurai-katana-artwork-wallpaper-a4aa02025d5e77e2b14042e58602e560.jpg'
+        'https://r4.wallpaperflare.com/wallpaper/951/583/798/fantasy-art-warrior-dark-souls-iii-dark-souls-wallpaper-5930c82d514a9d8bd637b87f30d1e6dd.jpg'
     ]
     with get_session() as session:
         uploading_process = Process(target=upload_video_process, args=(queue, condition))

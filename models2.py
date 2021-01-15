@@ -386,6 +386,7 @@ class Channel(Base, MyBase):
     name = Column('name', String)
     __yt_credentials = Column('yt_credentials', String)
     __client_secrets = Column('client_secrets', String)
+    __token_path = Column('token_path', String)
     category = Column('category', String)
     publish_time = Column('publish_time', Time)
     __publish_days = Column('publish_days', String)
@@ -396,27 +397,36 @@ class Channel(Base, MyBase):
     def __init__(self, name, channel_id, yt_credentials, client_secrets):
         self.name = name
         self.id = channel_id
-        self.yt_credentials = yt_credentials
-        self.client_secrets = client_secrets
         self.category = 'Music'
         self.publish_time = datetime.time(15, 0, 0)
         self.publish_days = [WeekDays.tue.name, WeekDays.thu.name, WeekDays.sat.name]
+        self.yt_credentials = None
+        self.client_secrets = None
+        self.token_path = None
 
     @property
     def yt_credentials(self) -> Path:
-        return Dir.root.value / self.__yt_credentials
+        return Dir.root.value / self.__yt_credentials if self.__yt_credentials is not None else None
 
     @yt_credentials.setter
     def yt_credentials(self, value: Path):
-        self.__yt_credentials = value.relative_to(Dir.root.value).__str__()
+        self.__yt_credentials = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
     @property
     def client_secrets(self) -> Path:
-        return Dir.root.value / self.__client_secrets
+        return Dir.root.value / self.__client_secrets if self.__client_secrets is not None else None
 
     @client_secrets.setter
     def client_secrets(self, value: Path):
-        self.__client_secrets = value.relative_to(Dir.root.value).__str__()
+        self.__client_secrets = value.relative_to(Dir.root.value).__str__() if value is not None else None
+
+    @property
+    def token_path(self) -> Path:
+        return Dir.root.value / self.__token_path if self.__token_path is not None else None
+
+    @token_path.setter
+    def token_path(self, value: Path):
+        self.__token_path = value.relative_to(Dir.root.value).__str__() if value is not None else None
 
     @property
     def publish_days(self) -> List[WeekDays]:
@@ -518,12 +528,16 @@ def main():
     migrate()
     lyrics_yt_credentials = Dir.root.value / 'assets/credentials/lyrics_yt_credentials.json'
     lyrics_client_secrets = Dir.root.value / 'assets/credentials/lyrics_client_secrets.json'
+    token_path = Dir.root.value / 'assets/tokens/lyrics_token.pickle'
     channel = Channel(
         'ncs arabi',
         'UCLbsLjqzPKBLa7kzlEmfCXA',
         lyrics_yt_credentials,
         lyrics_client_secrets
     )
+    channel.token_path = token_path
+    channel.lyrics_yt_credentials = lyrics_yt_credentials
+    channel.lyrics_client_secrets = lyrics_client_secrets
     with get_session() as session:
         session.add(channel)
         session.commit()

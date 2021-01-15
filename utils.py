@@ -6,6 +6,10 @@ from models2 import Song
 from paths import Dir
 
 
+class Color(Enum):
+    YELLOW = '#eddd00'
+
+
 class Bcolors(Enum):
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

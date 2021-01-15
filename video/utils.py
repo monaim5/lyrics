@@ -1,4 +1,5 @@
 import json
+import pickle
 import re
 import shutil
 import subprocess
@@ -21,7 +22,9 @@ __all__ = [
     'upload_video',
     'generate_desc',
     'generate_tags',
-    'generate_title'
+    'generate_title',
+    'comment_to_origin',
+    'generate_comment_from_lyrics'
 ]
 
 
@@ -86,28 +89,61 @@ def effects(**kwargs):
     return kwargs
 
 
-def white_theme(**kwargs):
-    return effects(font_color=[0, 0, 0],
-                   shadow={'color': [0, 0, 0], 'animation': False},
-                   stroke={'color': [0, 0, 0], 'width': 4},
-                   glass={'color': [255, 5, 18]},
-                   **kwargs)
+def white_theme_text(**kwargs):
+    kwargs['font_color'] = [1, 1, 1]
+    kwargs['stroke'] = {'color': [0, 0, 0], 'width': 5}
+    if 'shadow' not in kwargs:
+        kwargs['shadow'] = {'color': [0, 0, 0], 'static': {'direction': 300}, 'animation': False}
+    if 'glass' not in kwargs:
+        kwargs['glass'] = {'color': [255, 5, 18]}
+    return effects(**kwargs)
 
 
-def black_theme(**kwargs):
-    return effects(font_color=[0, 0, 0],
-                   shadow=False,
-                   stroke={'color': [1, 1, 1], 'width': 4},
-                   glass=False,
-                   **kwargs)
+def black_theme_text(**kwargs):
+    kwargs['font_color'] = [0, 0, 0]
+    kwargs['stroke'] = {'color': [0, 0, 0], 'width': 5}
+    kwargs['shadow'] = False
+    if 'glass' not in kwargs:
+        kwargs['glass'] = False
+    return effects(**kwargs)
 
 
 def black_theme_logo(**kwargs):
     return effects(shadow=False, stroke=False, glass={'color': [255, 5, 18]}, invert=True, **kwargs)
 
 
+def white_theme_logo(**kwargs):
+    return effects(shadow={'color': [0, 0, 0], 'static': False, 'animation': True},
+                   stroke=False, glass={'color': [255, 5, 18]}, invert=False, **kwargs)
+
+
 def black_them_spectrum(**kwargs):
     return effects(color='#000000', **kwargs)
+
+
+def white_them_spectrum(**kwargs):
+    return effects(**kwargs)
+
+
+def black_them():
+    return {
+        'arabic_text': black_theme_text(font='bader_al-yadawi', spacing=5),
+        'latin_text': black_theme_text(font='OptimusPrinceps'),
+        'logo': black_theme_logo(),
+        'spectrum': black_them_spectrum()
+    }
+
+
+def white_them(spectrum_color, **kwargs):
+    return {
+        'arabic_text': white_theme_text(font='bader_al-yadawi', spacing=5,
+                                        shadow={'color': [0, 0, 0], 'static': {'direction': 300}, 'animation': False}),
+        'latin_text': white_theme_text(font='OptimusPrinceps',
+                                       shadow={'color': [0, 0, 0], 'static': {'direction': 240}, 'animation': False}),
+        'logo': white_theme_logo(),
+        'spectrum': white_them_spectrum(color=spectrum_color)
+    }
+
 
 def create_aep(aep: AEP):
     if aep.file_exists:
@@ -119,14 +155,9 @@ def create_aep(aep: AEP):
         'background_path': aep.background.path.__str__(),
         'lyrics_map_path': aep.lyrics.map_lyrics.path.__str__(),
         'template_path': aep.template_path.__str__(),
-        'offset_time': 0.12,  # 0.2
+        'offset_time': 0.3,  # 0.2
         'max_fade_duration': 0.7,
-        'effects': {
-            'arabic_text': black_theme(font='bader_al-yadawi', spacing=5),
-            'latin_text': black_theme(font='OptimusPrinceps'),
-            'logo': black_theme_logo(),
-            'spectrum': black_them_spectrum()
-        }
+        'effects': white_them(aep.color)
     }
 
     with open(File.json_bridge.value, 'w+') as f:
@@ -167,7 +198,8 @@ def upload_video(video: Video, channel, **kwargs):
     # ]
 
     arguments = []
-
+    tags = kwargs.pop('tags')
+    arguments.append('--tags="' + ','.join(tags) + '"')
     for arg in kwargs:
         arguments.append(f'--{arg.replace("_", "-")}={kwargs.get(arg)}')
     arguments.extend((f'--client-secrets={channel.client_secrets}',
@@ -178,12 +210,13 @@ def upload_video(video: Video, channel, **kwargs):
     uploaded_video = UploadedVideo(video, channel)
     uploaded_video.title = kwargs['title']
     uploaded_video.description = kwargs['description']
-    uploaded_video.tags = kwargs['tags']
+    uploaded_video.tags = tags
     uploaded_video.published_date = kwargs['publish_at'] if kwargs['publish_at'] is not None else datetime.now()
 
     upload_try = 1
     while upload_try <= 3:
         try:
+            print(arguments)
             print(f'{Bcolors.WARNING.value}{Bcolors.BOLD.value}the {upload_try} try{Bcolors.ENDC.value}')
             uploaded_video.yt_video_id = yt_main(arguments)[0]
             uploaded_video.add_to_uploaded_to_lyrics()
@@ -237,3 +270,35 @@ def generate_desc(title, credit):
                             '\n#أغاني_مترجمة #أغاني_حماسية #أغاني_غربية'
 
     return desc
+
+
+def generate_comment_from_lyrics(lyrics_path):
+    with open(lyrics_path, encoding='utf-8') as f:
+        lyrics = json.load(f)
+
+    ar_lyrics = ''
+    en_lyrics = ''
+    for line in lyrics:
+        ar_lyrics += f'{line["text_ar"]}\n'
+        en_lyrics += f'{line["text_en"]}\n'
+    comment = "Lyrics: It's available in my channel tho\nالكلمات باللغة العربية أيضا، تعال و شاهدها على قناتي"
+    comment += f'\n{en_lyrics}\n\n{ar_lyrics}'
+    return comment
+
+
+def comment_to_origin(token_path, comment, video_id):
+    with open(token_path, 'rb') as token:
+        creds = pickle.load(token)
+
+    from apiclient.discovery import build
+
+    youtube = build('youtube', 'v3', credentials=creds)
+    request_body = {"snippet": {"videoId": video_id,
+                                "topLevelComment": {
+                                    "snippet": {
+                                        "textOriginal": comment
+                                    }}}}
+
+    request = youtube.commentThreads().insert(part='snippet', body=request_body)
+    response = request.execute()
+    print(response)
