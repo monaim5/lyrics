@@ -197,12 +197,12 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
 def main():
     queue = Queue()
     condition = Condition()
-    songs_urls = [
-        'https://www.youtube.com/watch?v=PbEGWtcUnK0'
-    ]
-    backgrounds_urls = [
-        'https://r4.wallpaperflare.com/wallpaper/951/583/798/fantasy-art-warrior-dark-souls-iii-dark-souls-wallpaper-5930c82d514a9d8bd637b87f30d1e6dd.jpg'
-    ]
+    songs_urls = []
+    backgrounds_urls = []
+    while (url := input('enter music url : ')) != '':
+        songs_urls.append(url)
+        backgrounds_urls.append(input('music background url : '))
+
     with get_session() as session:
         uploading_process = Process(target=upload_video_process, args=(queue, condition))
         upload_queue = session.query(UploadQueue).all()
