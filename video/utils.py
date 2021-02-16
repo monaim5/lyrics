@@ -1,22 +1,14 @@
 import json
-import pickle
 import re
-import shutil
 import subprocess
 from datetime import datetime
-from pathlib import Path
-from urllib import request, parse
-
-import requests
-from models import Song
-from models2 import MapLyrics, Background, AEP, Video, UploadedVideo, Lyrics
-from paths import Dir, File, Binary
+from models2 import AEP, Video, UploadedVideo
+from paths import File, Binary
 from youtube_upload.main import main as yt_main
 
 from utils import Bcolors
 
 __all__ = [
-    'download_background',
     'create_aep',
     'render_aep',
     'upload_video',
@@ -27,62 +19,9 @@ __all__ = [
     'generate_comment_from_lyrics'
 ]
 
+from youtube_utils import YoutubeApiManager
 
-def download_background(background):
-    assert len(background.url) > 40
-    background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
-    if background.file_exists:
-        return background
 
-    def get_bg_from_wallpaperflare():
-        res = requests.get(background.url, stream=True)
-        with open(background.path, 'wb') as out_file:
-            shutil.copyfileobj(res.raw, out_file)
-        return background
-
-    def get_bg_from_reddit():
-        request.urlretrieve(background.url, background.path)
-        return background
-
-    def get_bg_from_pexels():
-        id_ = re.search(r'(.*)-(?P<id>[0-9]+)/', background.url)
-        url_ = 'https://www.pexels.com/photo/%s/download' % id_.group('id')
-        opener = request.build_opener()
-        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-        request.install_opener(opener)
-        request.urlretrieve(url_, background.path)
-        return background
-
-    def get_bg_from_500px():
-        payload = {'url': background.url}
-        payload = parse.urlencode(payload).encode()
-        res = request.urlopen("https://www.500pxdownload.com/pix.php", data=payload)
-
-        encoding = res.info().get_param('charset', 'utf8')
-        html = res.read().decode(encoding)
-
-        result = re.search(r'src=\'(?P<lien>data:image/(?P<ext>.*);base(.|\n)*)\'( )*/>', html)
-
-        img = request.urlopen(result.group('lien'))
-        with open(background.path, 'wb') as f:
-            f.write(img.file.read())
-
-        return background
-
-    def main():
-        if 'i.redd.it' in background.url:
-            return get_bg_from_reddit()
-        elif '500px' in background.url:
-            return get_bg_from_500px()
-        elif 'pexels' in background.url:
-            return get_bg_from_pexels()
-        elif 'wallpaperflare' in background.url:
-            return get_bg_from_wallpaperflare()
-        else:
-            return False
-
-    background.downloaded = True
-    return main()
 
 
 def effects(**kwargs):
@@ -155,7 +94,7 @@ def create_aep(aep: AEP):
         'background_path': aep.background.path.__str__(),
         'lyrics_map_path': aep.lyrics.map_lyrics.path.__str__(),
         'template_path': aep.template_path.__str__(),
-        'offset_time': 0.3,  # 0.2
+        'offset_time': 0.1,  # 0.2
         'max_fade_duration': 0.7,
         'effects': white_them(aep.color)
     }
@@ -286,19 +225,22 @@ def generate_comment_from_lyrics(lyrics_path):
     return comment
 
 
+# def get_youtube_api(token_path):
+#     with open(token_path, 'rb') as token:
+#         creds = pickle.load(token)
+#
+#     from apiclient.discovery import build
+#     youtube = build('youtube', 'v3', credentials=creds)
+
+
 def comment_to_origin(token_path, comment, video_id):
-    with open(token_path, 'rb') as token:
-        creds = pickle.load(token)
-
-    from apiclient.discovery import build
-
-    youtube = build('youtube', 'v3', credentials=creds)
+    youtube = YoutubeApiManager.api_by_token(token_path)
     request_body = {"snippet": {"videoId": video_id,
                                 "topLevelComment": {
                                     "snippet": {
                                         "textOriginal": comment
                                     }}}}
 
-    request = youtube.commentThreads().insert(part='snippet', body=request_body)
-    response = request.execute()
-    print(response)
+    api_request = youtube.commentThreads().insert(part='snippet', body=request_body)
+    api_response = api_request.execute()
+    print(api_response)

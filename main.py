@@ -199,9 +199,12 @@ def main():
     condition = Condition()
     songs_urls = []
     backgrounds_urls = []
+
+    # TODO add url validation for both song and background urls
     while (url := input('enter music url : ')) != '':
         songs_urls.append(url)
-        backgrounds_urls.append(input('music background url : '))
+    while (bg := input('enter background url : ')) != '':
+        backgrounds_urls.append(bg)
 
     with get_session() as session:
         uploading_process = Process(target=upload_video_process, args=(queue, condition))

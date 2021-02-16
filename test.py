@@ -1,7 +1,18 @@
+import re
 from pathlib import Path
 
 from youtube_dl import YoutubeDL
 
+
+import urllib.request
+
+url = 'https://yt3.ggpht.com/ytc/AAUvwnjAlfI_yEokR2mvK0mOZATU_vKQgq8UUNrW0fBT=s48-c-k-c0xffffffff-no-rj-mo'
+
+pattern = re.compile('[^=]*')
+nurl = pattern.search(url)
+print(nurl.group(0))
+exit()
+urllib.request.urlretrieve(url, "00000001.jpg")
 
 def download_song(url, out_dir):
     download_options = {

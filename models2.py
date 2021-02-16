@@ -387,6 +387,7 @@ class Channel(Base, MyBase):
     __yt_credentials = Column('yt_credentials', String)
     __client_secrets = Column('client_secrets', String)
     __token_path = Column('token_path', String)
+    api_key = Column('api_key', String)
     category = Column('category', String)
     publish_time = Column('publish_time', Time)
     __publish_days = Column('publish_days', String)
@@ -394,7 +395,7 @@ class Channel(Base, MyBase):
     uploaded_videos = relationship("UploadedVideo")
     upload_queue_items = relationship("UploadQueue")
 
-    def __init__(self, name, channel_id, yt_credentials, client_secrets):
+    def __init__(self, name, channel_id):
         self.name = name
         self.id = channel_id
         self.category = 'Music'
@@ -402,6 +403,7 @@ class Channel(Base, MyBase):
         self.publish_days = [WeekDays.tue.name, WeekDays.thu.name, WeekDays.sat.name]
         self.yt_credentials = None
         self.client_secrets = None
+        self.api_key = None
         self.token_path = None
 
     @property
@@ -528,13 +530,13 @@ def main():
     migrate()
     lyrics_yt_credentials = Dir.root.value / 'assets/credentials/lyrics_yt_credentials.json'
     lyrics_client_secrets = Dir.root.value / 'assets/credentials/lyrics_client_secrets.json'
+    api_key = 'AIzaSyBh_M02cc69Gqkel1IoJdourfTjS6rrCBQ'
     token_path = Dir.root.value / 'assets/tokens/lyrics_token.pickle'
     channel = Channel(
         'ncs arabi',
-        'UCLbsLjqzPKBLa7kzlEmfCXA',
-        lyrics_yt_credentials,
-        lyrics_client_secrets
+        'UCLbsLjqzPKBLa7kzlEmfCXA'
     )
+    channel.api_key = api_key
     channel.token_path = token_path
     channel.lyrics_yt_credentials = lyrics_yt_credentials
     channel.lyrics_client_secrets = lyrics_client_secrets
