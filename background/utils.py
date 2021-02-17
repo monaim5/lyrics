@@ -1,14 +1,17 @@
 import re
 import shutil
 from urllib import request, parse
+from urllib.request import urlopen
+
 import requests
 
 from paths import Dir
 
 
 def download_background(background):
-    assert len(background.url) > 40
-    background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
+    if background.path is None:
+        assert len(background.url) > 40
+        background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
     if background.file_exists:
         return background
 
@@ -19,7 +22,15 @@ def download_background(background):
         return background
 
     def get_bg_by_urlretrieve():
+
+        response = urlopen(background.url)
+        image_type = response.info().get_content_type()
+        image_type = re.search('image/(.*)', image_type).group(1)
+        ext = '.' + ('jpg' if image_type == 'jpeg' else image_type)
+        background.path = background.path.with_suffix(ext)
+
         request.urlretrieve(background.url, background.path)
+
         return background
 
     def get_bg_from_pexels():

@@ -4,7 +4,9 @@ from functools import reduce
 
 from apiclient.discovery import build
 
+from background.utils import download_background
 from models2 import Background
+from paths import Dir
 
 
 class YoutubeApiManager:
@@ -58,10 +60,17 @@ def get_top_commentators(channel, top_count):
         return acc
 
     top = reduce(map_reduce, comments['items'], {})
-    top = {(k, v) for k, v in top.items()}
-    top_commentators = sorted(top, key=lambda v: v[1]['comment_count'], reverse=True)[:top_count]
-    for commentator in top_commentators:
-        url = re.search('[^=]*', commentator[1]['imageUrl'])
+    top = [{'channel_id': k, 'info': v} for k, v in top.items()]
+    # top = {(k, v) for k, v in top.items()}
+    top_commentators = sorted(top, key=lambda v: v['info']['comment_count'], reverse=True)[:top_count]
+    for index, commentator in enumerate(top_commentators):
+        commentator['info']['rank'] = index + 1
+        url = re.search('[^=]*', commentator['info']['imageUrl']).group()
         background = Background(url)
-        background.path = Dir.
+        background.path = (Dir.channels_images.value / commentator['channel_id'])
+        background = download_background(background)
+        commentator['info']['image_path'] = background.path
+    return [{'name': commentator['info']['name'],
+             'rank': commentator['info']['rank'],
+             'thumbnailPath': commentator['info']['image_path'].__str__()} for commentator in top_commentators]
 

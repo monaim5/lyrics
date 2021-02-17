@@ -10,6 +10,7 @@ class Dir(Enum):
     lyrics_dir = root / 'lyrics'
     aep_temp_dir = root / 'assets/aep/temp'
     test_dir = root / 'test'
+    channels_images = backgrounds_dir / 'channels_images'
 
 
 class Binary(Enum):

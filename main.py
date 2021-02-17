@@ -1,6 +1,8 @@
 import traceback
 from datetime import datetime
 from multiprocessing import Process, Condition, Queue
+
+from background.utils import download_background
 from lyrics.lyrics import get_lyrics, map_lyrics, adjust_lyrics
 from models2 import get_session, Song, Background, Lyrics, AEP, MapLyrics, RenderQueue, Channel, UploadQueue, Video
 from paths import File
@@ -9,6 +11,7 @@ from video.utils import *
 import logging
 
 from video.utils import comment_to_origin, generate_comment_from_lyrics
+from youtube_utils import get_top_commentators
 
 logging.basicConfig(filename=File.log_file.value, level=logging.INFO)
 
@@ -86,18 +89,21 @@ def register_aeps_process(session):
         aep.add(session, commit=True)
 
 
-def create_aeps_process(session):
+def create_aeps_process(session, channel):
     """
     creating adobe after effects projects (aep)
     :param session: The current database connection
     :type session: sqlalchemy.orm.session.Session
+    :param channel: the channel which we want to upload the video and get top commentators
     """
     print('creating aeps process')
     aeps1 = session.query(AEP).filter(AEP.archived == 0).all()
     aeps2 = session.query(AEP).filter(AEP.archived == 1).filter(AEP.id.notin_(session.query(Video.aep_id))).all()
 
     for aep in aeps2 + aeps1:
-        aep = create_aep(aep)
+        # TODO: maybe it s better to add channel to aep model
+        top_commentators = get_top_commentators(channel, 3)
+        aep = create_aep(aep, top_commentators)
         RenderQueue(aep).add(session, commit=True, id=aep.id)
 
 
@@ -209,7 +215,7 @@ def main():
     with get_session() as session:
         uploading_process = Process(target=upload_video_process, args=(queue, condition))
         upload_queue = session.query(UploadQueue).all()
-
+        channel = session.query(Channel).filter(Channel.name == 'ncs arabi').one()
         for item in upload_queue:
             queue.put(item)
         if input('parallel videos upload? (y, n) (default n) : ') == 'y':
@@ -227,7 +233,7 @@ def main():
             map_lyrics_process(session)
 
             register_aeps_process(session)
-            create_aeps_process(session)
+            create_aeps_process(session, channel)
             render_aeps_process(session=session, queue=queue, condition=condition)
 
         finally:

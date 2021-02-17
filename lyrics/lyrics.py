@@ -60,11 +60,14 @@ def get_lyrics(song: Song) -> Lyrics:
             lyrics.append({'text_en': text_en, 'text_ar': text_ar})
             i += 1
 
-    if not lyrics_.path.parent.exists():
-        lyrics_.path.parent.mkdir()
+    if len(lyrics) < 5:
+        lyrics_ = build_lyrics_from_text(song)
+    else:
+        if not lyrics_.path.parent.exists():
+            lyrics_.path.parent.mkdir()
 
-    with open(lyrics_.path, 'w+', encoding='utf-8') as f:
-        json.dump(lyrics, f, ensure_ascii=False, sort_keys=True, indent=2)
+        with open(lyrics_.path, 'w+', encoding='utf-8') as f:
+            json.dump(lyrics, f, ensure_ascii=False, sort_keys=True, indent=2)
     return lyrics_
 
 
@@ -95,3 +98,30 @@ def adjust_lyrics(map_lyrics_: MapLyrics):
     root.focus_force()
     root.mainloop()
 
+
+def build_lyrics_from_text(song: Song) -> Lyrics:
+    lyrics_ = Lyrics(song)
+    if lyrics_.file_exists:
+        return lyrics_
+
+    if not lyrics_.path.parent.exists():
+        lyrics_.path.parent.mkdir()
+
+    lyrics_.path.touch()
+    input('past the lyrics in the lyrics file ')
+    with open(lyrics_.path) as f:
+        lyrics = f.read().splitlines()
+    print('translating ...')
+    new_lyrics = []
+    translator = google_translator()
+    for line in lyrics:
+        text_ar = translator.translate(line, lang_tgt='ar').strip()
+        new_lyrics.append({'text_en': line, 'text_ar': text_ar})
+    print(new_lyrics)
+    with open(lyrics_.path, 'w+', encoding='utf-8') as f:
+        json.dump(new_lyrics, f, ensure_ascii=False, sort_keys=True, indent=2)
+
+    print(new_lyrics)
+
+    print('lyrics translated and written')
+    return lyrics_

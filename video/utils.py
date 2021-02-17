@@ -22,8 +22,6 @@ __all__ = [
 from youtube_utils import YoutubeApiManager
 
 
-
-
 def effects(**kwargs):
     return kwargs
 
@@ -84,7 +82,7 @@ def white_them(spectrum_color, **kwargs):
     }
 
 
-def create_aep(aep: AEP):
+def create_aep(aep: AEP, commentators=None):
     if aep.file_exists:
         return aep
 
@@ -94,13 +92,14 @@ def create_aep(aep: AEP):
         'background_path': aep.background.path.__str__(),
         'lyrics_map_path': aep.lyrics.map_lyrics.path.__str__(),
         'template_path': aep.template_path.__str__(),
-        'offset_time': 0.1,  # 0.2
+        'offset_time': 0.3,  # 0.2
         'max_fade_duration': 0.7,
-        'effects': white_them(aep.color)
+        'effects': white_them(aep.color),
+        'commentators': commentators
     }
 
-    with open(File.json_bridge.value, 'w+') as f:
-        json.dump(content, f, sort_keys=True, indent=2)
+    with open(File.json_bridge.value, 'w+', encoding='utf-8') as f:
+        json.dump(content, f, sort_keys=True, indent=2, ensure_ascii=False)
     # script = r'C:\Users\mon\Documents\lyrics\assets\AEP\scripts\to_lyrics.jsx'
     subprocess.call([Binary.afterfx_com.value, '-r', aep.script_path])
     return aep
@@ -124,17 +123,6 @@ def render_aep(aep: AEP):
 def upload_video(video: Video, channel, **kwargs):
     # edited the youtube_upload.main.run_main and youtube_upload.main.main
     # by adding (video_ids: list) for return it at the end, by the main function
-
-    # arguments = [
-    #     '--title=%s' % title,
-    #     '--description=%s' % description,
-    #     '--category=Music',
-    #     '--tags=%s' % tags,
-    #     '--publish-at=%s' % publish_at,
-    #     '--client-secrets=%s' % self.client_secrets,
-    #     '--credentials-file=%s' % self.yt_credentials,
-    #     video_path
-    # ]
 
     arguments = []
     tags = kwargs.pop('tags')
