@@ -2,7 +2,7 @@ import json
 import re
 import subprocess
 from datetime import datetime
-from models2 import AEP, Video, UploadedVideo
+from models import AEP, Video, UploadedVideo
 from paths import File, Binary
 from youtube_upload.main import main as yt_main
 

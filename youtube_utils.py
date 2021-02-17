@@ -5,7 +5,7 @@ from functools import reduce
 from apiclient.discovery import build
 
 from background.utils import download_background
-from models2 import Background
+from models import Background
 from paths import Dir
 
 

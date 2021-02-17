@@ -4,10 +4,11 @@ from multiprocessing import Process, Condition, Queue
 
 from background.utils import download_background
 from lyrics.lyrics import get_lyrics, map_lyrics, adjust_lyrics
-from models2 import get_session, Song, Background, Lyrics, AEP, MapLyrics, RenderQueue, Channel, UploadQueue, Video
+from models import get_session, Song, Background, Lyrics, AEP, MapLyrics, RenderQueue, Channel, UploadQueue, Video
 from paths import File
 from utils import download_song, Color
 from video.utils import *
+from song.utils import download_song
 import logging
 
 from video.utils import comment_to_origin, generate_comment_from_lyrics
@@ -206,7 +207,7 @@ def main():
     songs_urls = []
     backgrounds_urls = []
 
-    # TODO add url validation for both song and background urls
+    # TODO add url validation for both songss and background urls
     while (url := input('enter music url : ')) != '':
         songs_urls.append(url)
     while (bg := input('enter background url : ')) != '':

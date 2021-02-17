@@ -6,7 +6,7 @@ from youtube_dl import YoutubeDL
 
 import urllib.request
 
-from models2 import get_session, Channel
+from models import get_session, Channel
 from youtube_utils import get_top_commentators
 
 exit()

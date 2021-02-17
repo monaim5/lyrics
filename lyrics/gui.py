@@ -4,7 +4,7 @@ import tkinter as tk
 
 import pygame
 
-from models2 import MapLyrics
+from models import MapLyrics
 
 
 def play_sound(path):

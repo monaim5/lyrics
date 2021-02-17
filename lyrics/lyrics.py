@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import tkinter as tk
 
 from lyrics.gui import MappingConsole, AdjustmentConsole
-from models2 import Song, Lyrics, MapLyrics
+from models import Song, Lyrics, MapLyrics
 from paths import Binary
 
 
