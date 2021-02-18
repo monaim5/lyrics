@@ -10,6 +10,7 @@ class Dir(Enum):
     lyrics_dir = root / 'lyrics'
     aep_temp_dir = root / 'assets/aep/temp'
     test_dir = root / 'test'
+    scrapped_youtube_videos_data = root / 'databases' / 'scrapped_youtube_videos_data'
     channels_images = backgrounds_dir / 'channels_images'
 
 

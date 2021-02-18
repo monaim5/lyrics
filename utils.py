@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 
 
@@ -16,3 +17,10 @@ class Bcolors(Enum):
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
+def get_yt_id(url):
+    match = re.search(r"youtube\.com/.*v=([^&]*)", url)
+    if match:
+        return match.group(1)
+    else:
+        raise Exception('no id in url')

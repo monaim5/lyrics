@@ -1,22 +1,19 @@
 import datetime
 import json
-import re
-import shutil
-from ast import literal_eval, parse
+from ast import literal_eval
 from pathlib import Path
 from enum import Enum as NativeEnum
 from typing import List
 
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date, Time, func, JSON, Boolean
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker, relationship, Session
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm.exc import NoResultFound
 
 from paths import Dir, File, Binary
 
 # from config import Config, Color
 # from mutagen.mp3 import MP3
+from utils import get_yt_id
 
 Base = declarative_base()
 engine = create_engine(f'sqlite:///{Binary.sqlite_db.value}')
@@ -57,7 +54,6 @@ class get_session:
             self.session.close()
 
 
-#
 # def get_mp3_duration(path):
 #     audio = MP3(path)
 #     return audio.info.length
@@ -161,14 +157,6 @@ class Background(Base, MyBase):
     # def exists(self):
     #     with get_session() as session:
     #         return session.query(Background).filter(Background.title == self.title).scalar()
-
-
-def get_yt_id(url):
-    match = re.search(r"youtube\.com/.*v=([^&]*)", url)
-    if match:
-        return match.group(1)
-    else:
-        raise Exception('no id in url')
 
 
 class Song(Base, MyBase):

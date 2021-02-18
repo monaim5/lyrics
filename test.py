@@ -1,14 +1,20 @@
-import re
+import json
 from pathlib import Path
-
 from youtube_dl import YoutubeDL
 
+from paths import Dir
+from youtube_utils import register_playlist_videos, register_channel_uploads
 
-import urllib.request
 
-from models import get_session, Channel
-from youtube_utils import get_top_commentators
+register_channel_uploads(channel_id='UCLbsLjqzPKBLa7kzlEmfCXA',
+                         api_key='AIzaSyB-PW9xhNxCC5EGZm0du75i3P27fB5ij50',
+                         folder='NCSArabi_uploads')
 
+
+exit()
+
+
+# dup = {(video, videos.count(video)) for video in set(videos) if videos.count(video) > 1}
 exit()
 def download_song(url, out_dir):
     download_options = {

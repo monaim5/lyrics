@@ -3,10 +3,10 @@ from datetime import datetime
 from multiprocessing import Process, Condition, Queue
 
 from background.utils import download_background
-from lyrics.lyrics import get_lyrics, map_lyrics, adjust_lyrics
+from lyrics.lyrics import get_lyrics, map_lyrics
 from models import get_session, Song, Background, Lyrics, AEP, MapLyrics, RenderQueue, Channel, UploadQueue, Video
 from paths import File
-from utils import download_song, Color
+from utils import Color
 from video.utils import *
 from song.utils import download_song
 import logging

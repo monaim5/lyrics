@@ -7,14 +7,6 @@ from models import Song
 from paths import Dir
 
 
-def get_yt_id(url):
-    match = re.search(r"youtube\.com/.*v=([^&]*)", url)
-    if match:
-        return match.group(1)
-    else:
-        raise Exception('no id in url')
-
-
 def get_credit(desc):
     result = re.search('Track:(.|\n)*- -', desc)
     return str(result.group(0)) if result else ''

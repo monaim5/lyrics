@@ -71,6 +71,14 @@ def get_lyrics(song: Song) -> Lyrics:
     return lyrics_
 
 
+def get_lyrics_from_musixmatch():
+    pass
+
+
+def get_lyrics_from_gunuis():
+    pass
+
+
 def map_lyrics(lyrics: Lyrics) -> MapLyrics:
     map_lyrics_ = MapLyrics(lyrics)
     if map_lyrics_.file_exists:

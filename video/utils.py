@@ -213,14 +213,6 @@ def generate_comment_from_lyrics(lyrics_path):
     return comment
 
 
-# def get_youtube_api(token_path):
-#     with open(token_path, 'rb') as token:
-#         creds = pickle.load(token)
-#
-#     from apiclient.discovery import build
-#     youtube = build('youtube', 'v3', credentials=creds)
-
-
 def comment_to_origin(token_path, comment, video_id):
     youtube = YoutubeApiManager.api_by_token(token_path)
     request_body = {"snippet": {"videoId": video_id,
