@@ -92,7 +92,7 @@ def create_aep(aep: AEP, commentators=None):
         'background_path': aep.background.path.__str__(),
         'lyrics_map_path': aep.lyrics.map_lyrics.path.__str__(),
         'template_path': aep.template_path.__str__(),
-        'offset_time': 0.3,  # 0.2
+        'offset_time': 0.4,  # 0.2
         'max_fade_duration': 0.7,
         'effects': white_them(aep.color),
         'commentators': commentators
@@ -139,13 +139,15 @@ def upload_video(video: Video, channel, **kwargs):
     uploaded_video.description = kwargs['description']
     uploaded_video.tags = tags
     uploaded_video.published_date = kwargs['publish_at'] if kwargs['publish_at'] is not None else datetime.now()
+    uploaded_video.original_youtube_id = video.aep.lyrics.song.id
+    uploaded_video.original_channel_id = video.aep.lyrics.song.ch
 
     upload_try = 1
     while upload_try <= 3:
         try:
             print(arguments)
             print(f'{Bcolors.WARNING.value}{Bcolors.BOLD.value}the {upload_try} try{Bcolors.ENDC.value}')
-            uploaded_video.yt_video_id = yt_main(arguments)[0]
+            uploaded_video.youtube_id = yt_main(arguments)[0]
             uploaded_video.add_to_uploaded_to_lyrics()
             return uploaded_video
 

@@ -169,6 +169,7 @@ class Song(Base, MyBase):
     tags = Column('tags', JSON)
     credit = Column('credit', String)
     downloaded = Column('downloaded', Boolean, default=False)
+    channel_id = Column('channel_id', String)
     archived = Column('archived', Boolean, default=False)
     __path = Column('path', String)
     # duration = Column('duration', Numeric)
@@ -178,6 +179,7 @@ class Song(Base, MyBase):
     def __init__(self, url):
         self.url = url
         self.id = get_yt_id(url)
+        self.channel_id = None
         self.audio_bitrate = None
         self.title = None
         self.path = None
@@ -473,12 +475,14 @@ class UploadedVideo(Base, MyBase):
     __tablename__ = 'uploaded_videos'
     id = Column('id', Integer, primary_key=True)
     video_id = Column(Integer, ForeignKey('videos.id'))
-    channel_id = Column(String, ForeignKey('channels.id'))
     title = Column('title', String)
     description = Column('description', String)
     tags = Column('tags', JSON)
     published_date = Column('published_date', Date)
-    yt_video_id = Column('youtube_id', String)
+    youtube_id = Column('youtube_id', String)
+    original_youtube_id = Column('original_youtube_id', String)
+    channel_id = Column(String, ForeignKey('channels.id'))
+    original_channel_id = Column('original_channel_id', String)
 
     video = relationship("Video", uselist=False)
     channel = relationship("Channel", uselist=False)
@@ -490,7 +494,9 @@ class UploadedVideo(Base, MyBase):
         self.description = None
         self.tags = None
         self.published_date = None
-        self.yt_video_id = None
+        self.youtube_id = None
+        self.original_youtube_id = None
+        self.original_channel_id = None
 
     def add_to_uploaded_to_lyrics(self):
         try:
@@ -499,7 +505,7 @@ class UploadedVideo(Base, MyBase):
                 videos = json.load(f)
             videos.append({
                 'original': original_song.id,
-                'lyrics': self.yt_video_id,
+                'lyrics': self.youtube_id,
                 'original_title': original_song.title,
                 'new_title': self.title
             })
