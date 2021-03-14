@@ -2,6 +2,7 @@ import json
 import re
 import time
 
+import googletrans
 from google_trans_new import google_translator
 from selenium import webdriver
 import requests
@@ -46,7 +47,8 @@ def get_lyrics(song: Song) -> Lyrics:
     row = soup.select('.mxm-translatable-line-readonly .row')
     lyrics = []
     i = 1
-    translator = google_translator()
+    translator2 = google_translator()
+    translator1 = googletrans.Translator()
     for line in row:
         if line.select('div')[0] is not None and len(line.select('div')[0].text) > 1:
             text_en = line.select('div')[0].text
@@ -55,7 +57,13 @@ def get_lyrics(song: Song) -> Lyrics:
         if line.select_one('.text-right') is not None and len(line.select_one('.text-right').text) > 1:
             text_ar = line.select_one('.text-right').text
         else:
-            text_ar = translator.translate(text_en, lang_tgt='ar').strip()
+            # try:
+            text_ar = translator1.translate(text_en, src='en', dest='ar').text.strip()
+            # except google_new_transError:
+            #     text_ar = translator2.translate(text_en, lang_tgt='ar').strip()
+            # except Exception as e:
+            #     print()
+            #     text_ar = '/'
         if text_en != '/' or text_ar != '/':
             lyrics.append({'text_en': text_en, 'text_ar': text_ar})
             i += 1

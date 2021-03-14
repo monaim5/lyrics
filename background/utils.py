@@ -1,5 +1,6 @@
 import re
 import shutil
+from pathlib import Path
 from urllib import request, parse
 from urllib.request import urlopen
 
@@ -9,9 +10,10 @@ from paths import Dir
 
 
 def download_background(background):
+    """parameter must include {url: str, file_exists: bool, path: Path} """
     if background.path is None:
         assert len(background.url) > 40
-        background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
+        background.path: Path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
     if background.file_exists:
         return background
 
@@ -59,7 +61,11 @@ def download_background(background):
         return background
 
     def main():
-        if '500px' in background.url:
+        if re.match(r'[cCdDeE]:[/\\]', background.url):
+            print(background.url)
+            print(background.path)
+            shutil.copy(background.url, background.path)
+        elif '500px' in background.url:
             return get_bg_from_500px()
         elif 'pexels' in background.url:
             return get_bg_from_pexels()

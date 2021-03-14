@@ -131,19 +131,6 @@ def register_videos(videos: List, folder):
             json.dump(page, f, ensure_ascii=False, indent=2, sort_keys=True)
 
 
-# def get_uploaded_videos():
-#     #TODO maybe should delete this function
-#     with open(File.json_uploaded_to_lyrics.value) as f:
-#         local_videos = json.load(f)
-#         local_videos = list(map(lambda v: v['original'] if 'original' in v else v, local_videos))
-#
-#     with get_session() as session:
-#         videos: List[UploadedVideo] = session.query(UploadedVideo).all()
-#         videos = list(map(lambda v: v.video.aep.lyrics.song.id, videos))
-#
-#     return videos, local_videos
-
-
 def get_mapped_uploaded_to_original_videos(original_videos_source: List[Path], target_videos: List[Path]):
     original_videos = []
     uploaded_videos = []
@@ -182,10 +169,14 @@ def get_mapped_uploaded_to_original_videos(original_videos_source: List[Path], t
                         'target_video_channel_id': uploaded_video[2],
                         'target_published_date': uploaded_video[3]
                     }
-        except StopIteration as e:
+        except StopIteration:
             print("end of iterator in get_mapped_uploaded_to_original_videos")
             break
 
 
 def register_uploaded_videos(videos):
+    pass
+
+
+def get_video_from_youtube():
     pass

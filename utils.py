@@ -3,7 +3,23 @@ from enum import Enum
 
 
 class Color(Enum):
+    WHITE = '#ffffff'
+    
+    LIGHT_RED = '#500606'
+    LIGHT_GREEN = '#074205'
+    LIGHT_BLUE = '#060F8E'
+
+    LIGHT_YELLOW = '#A89E10'
+
+    RED = '#FF0000'
+    GREEN = '#00FF00'
+    BLUE = '#03043F'
+
     YELLOW = '#eddd00'
+    CYAN = '#07E1EF'
+    ORANGE = '#360F02'
+    PURPLE = '#42053E'
+
 
 
 class Bcolors(Enum):

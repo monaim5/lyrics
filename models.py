@@ -167,6 +167,7 @@ class Song(Base, MyBase):
     audio_bitrate = Column('audio_bitrate', Integer)
     filename = Column('filename', String)
     tags = Column('tags', JSON)
+    color = Column('color', String)
     credit = Column('credit', String)
     downloaded = Column('downloaded', Boolean, default=False)
     channel_id = Column('channel_id', String)
@@ -180,6 +181,7 @@ class Song(Base, MyBase):
         self.url = url
         self.id = get_yt_id(url)
         self.channel_id = None
+        self.color = None
         self.audio_bitrate = None
         self.title = None
         self.path = None

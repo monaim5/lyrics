@@ -1,3 +1,4 @@
+import random
 import traceback
 from datetime import datetime
 from multiprocessing import Process, Condition, Queue
@@ -23,8 +24,9 @@ def register_songs_process(session, song_urls):
     :type session: sqlalchemy.orm.session.Session
     """
     added_songs = 0
-    for song_id in song_urls:
-        song = Song(song_id)
+    for song_info in song_urls:
+        song = Song(song_info[0])
+        song.color = song_info[1]
         if song.exists_in_db(session):
             continue
         song.add(session, commit=True)
@@ -85,8 +87,8 @@ def register_aeps_process(session):
     backgrounds = session.query(Background).filter(Background.archived == 0) \
         .filter(Background.id.notin_(session.query(AEP.background_id))).all()
     for lyrics, background in zip(lyrics_havnt_aep, backgrounds):
-        color = Color.YELLOW.value
-        aep = AEP(lyrics, background, color)
+        color = Color.__getattr__(lyrics.song.color) if lyrics.song.color in dir(Color) else random.choice(list(Color))
+        aep = AEP(lyrics, background, color.value)
         aep.add(session, commit=True)
 
 
@@ -209,7 +211,8 @@ def main():
 
     # TODO add url validation for both songss and background urls
     while (url := input('enter music url : ')) != '':
-        songs_urls.append(url)
+        color = color if (color := input('enter color : ')) != '' else None
+        songs_urls.append((url, color))
     while (bg := input('enter background url : ')) != '':
         backgrounds_urls.append(bg)
 
