@@ -38,7 +38,7 @@ def white_theme_text(**kwargs):
 
 def black_theme_text(**kwargs):
     kwargs['font_color'] = [0, 0, 0]
-    kwargs['stroke'] = {'color': [0, 0, 0], 'width': 5}
+    kwargs['stroke'] = {'color': [1, 1, 1], 'width': 5}
     kwargs['shadow'] = False
     if 'glass' not in kwargs:
         kwargs['glass'] = False
@@ -62,10 +62,17 @@ def white_them_spectrum(**kwargs):
     return effects(**kwargs)
 
 
+HISTORY_FONTS = [
+    ('bader_al-yadawi', 'spacing :5', 'OptimusPrinceps', 68),
+    ('VIPRawyRegular', 'spacing :3', 'Amita-Regular', 68),
+    ('VIPRawy-Bold', 'spacing: 3')
+]
+
+
 def black_them():
     return {
-        'arabic_text': black_theme_text(font='bader_al-yadawi', spacing=5),
-        'latin_text': black_theme_text(font='OptimusPrinceps'),
+        'arabic_text': black_theme_text(font='VIPRawy-Bold', spacing=3, font_size=72),
+        'latin_text': black_theme_text(font='VIPRawy-Bold', font_size=68),
         'logo': black_theme_logo(),
         'spectrum': black_them_spectrum()
     }
@@ -73,9 +80,9 @@ def black_them():
 
 def white_them(spectrum_color, **kwargs):
     return {
-        'arabic_text': white_theme_text(font='bader_al-yadawi', spacing=5,
+        'arabic_text': white_theme_text(font='VIPRawy-Bold', spacing=3, font_size=72,
                                         shadow={'color': [0, 0, 0], 'static': {'direction': 300}, 'animation': False}),
-        'latin_text': white_theme_text(font='OptimusPrinceps',
+        'latin_text': white_theme_text(font='VIPRawy-Bold', font_size=68,
                                        shadow={'color': [0, 0, 0], 'static': {'direction': 240}, 'animation': False}),
         'logo': white_theme_logo(),
         'spectrum': white_them_spectrum(color=spectrum_color)
@@ -83,8 +90,8 @@ def white_them(spectrum_color, **kwargs):
 
 
 def create_aep(aep: AEP, commentators=None):
-    if aep.file_exists:
-        return aep
+    # if aep.file_exists:
+    #     return aep
 
     content = {
         'aep_path': aep.path.__str__(),
@@ -92,9 +99,10 @@ def create_aep(aep: AEP, commentators=None):
         'background_path': aep.background.path.__str__(),
         'lyrics_map_path': aep.lyrics.map_lyrics.path.__str__(),
         'template_path': aep.template_path.__str__(),
-        'offset_time': 0.2,  # 0.2
+        'offset_time': 0.35,  # 0.2
         'max_fade_duration': 0.7,
         'effects': white_them(aep.color),
+        # 'effects': white_them(),
         'commentators': commentators
     }
 
@@ -128,6 +136,9 @@ def upload_video(video: Video, channel, **kwargs):
     tags = kwargs.pop('tags')
     arguments.append('--tags="' + ','.join(tags) + '"')
     for arg in kwargs:
+        if arg == 'publish_at':
+            arguments.append('--publish-at=' + kwargs.get(arg).strftime('%Y-%m-%dT%H:%M:%SZ'))
+            continue
         arguments.append(f'--{arg.replace("_", "-")}={kwargs.get(arg)}')
     arguments.extend((f'--client-secrets={channel.client_secrets}',
                       f'--credentials-file={channel.yt_credentials}',
@@ -138,7 +149,7 @@ def upload_video(video: Video, channel, **kwargs):
     uploaded_video.title = kwargs['title']
     uploaded_video.description = kwargs['description']
     uploaded_video.tags = tags
-    uploaded_video.published_date = kwargs['publish_at'] if kwargs['publish_at'] is not None else datetime.now()
+    uploaded_video.published_date = kwargs['publish_at'] if 'publish_at' in kwargs and kwargs['publish_at'] is not None else datetime.now()
     uploaded_video.original_youtube_id = video.aep.lyrics.song.id
     uploaded_video.original_channel_id = video.aep.lyrics.song.channel_id
 
@@ -159,23 +170,21 @@ def upload_video(video: Video, channel, **kwargs):
 
 
 def generate_title(title: str):
-    if re.search('\[.*\]', title):
-        t = re.sub('\[.*\]', '[Arabic Lyrics] اغنية حماسية مترجمة', title)
+    if re.search(r'\[.*]', title):
+        t = re.sub(r'\[.*]', '[Arabic Lyrics] translated arabic مترجمة بالانجليزي', title)
     else:
-        t = title + ' [Arabic Lyrics] اغنية حماسية مترجمة'
+        t = title + ' [Arabic Lyrics] translated arabic مترجمة بالانجليزي'
     return t
 
 
 def generate_tags(title, tags) -> list:
     original_tags = tags if tags is not None else []
     # original_tags = original_tags.split(',') if tags is not None else []
-    additional_tags = ['ncs arabi', 'أغاني انجليزية مترجمة', 'كلمات مترجمة', 'كلمات انجليزية',
-                       'أغاني انجليزية ومعناها بالعربي', 'تعلم انجليزية', 'تعلم الانجليزية بالأغاني',
-                       'NCS lyrics', 'اغاني انجليزية سهلة الحفظ للاطفال', 'اغاني انجليزية حماسية', 'مترجم',
-                       'ncs', 'اغنية حماسية اجنبية 2020', 'اغاني انجليزية مشهورة 2020',
-                       'اغاني انجليزية مشهورة', 'اغاني انجليزية لتعلم اللغة']
+    additional_tags = ['مترجمة بالانجليزي', 'translated arabic', 'مترجمة google', 'تعلم انجليزية',
+                       'مترجمة بالعربي', 'Arapça öğren', 'youmusic', 'al maany', 'translate english arabe',
+                       'arabickey', 'word arabic', 'darija', 'free copyright music', 'no copyright music']
 
-    new_tags = original_tags + additional_tags
+    new_tags = additional_tags + original_tags
     tags_length = 0
     tag_index = 0
     while tag_index < len(new_tags) and tags_length + len(new_tags[tag_index]) < 400:
@@ -191,12 +200,13 @@ def generate_desc(title, credit):
     except Exception:
         credit = ''
 
-    desc = 'أغنية حماسية مترجمة ضع السماعات و إستمتع بالحماس و أنت فاهم الكلمات باللغة العربية و في نفس الوقت تعلم بعض الكلمات الإنجليزية\n' \
+    desc = 'أغنية مترجمة بالانجليزي ضع السماعات و إستمتع بالحماس و أنت فاهم الكلمات باللغة العربية و في نفس الوقت تعلم بعض الكلمات الإنجليزية\n' \
+           '\nMusic translated into arabic from english\n\n' \
            '\nإن اعجبك الفيديو لا تنسي الاعجاب والاشتراك بالقناة وتفعيل زر الجرس ليصلك كل ما هو جديد\n\n' \
            'حسابنا على الإنستجرام:' + 'https://www.instagram.com/ncsarab' + '\n' \
                                                                             'حسابنا على الفايسبوك:' + 'https://www.facebook.com/ncs.arabi' + '\n\n' + \
            title + credit + '\n\nنورتو قناة حبايبي شكرا لكم جميعا يا رفاق على دعمكم' \
-                            '\n#أغاني_مترجمة #أغاني_حماسية #أغاني_غربية'
+                            '\n#أغاني_مترجمة #مترجمة_بالانجليزي #أغاني_غربية'
 
     return desc
 

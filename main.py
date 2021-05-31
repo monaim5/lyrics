@@ -44,6 +44,7 @@ def register_backgrounds_process(session, background_urls):
     backgrounds_added = 0
 
     for url in background_urls:
+
         background = Background(url)
         if background.exists_in_db(session, url=background.url):
             continue
@@ -62,6 +63,7 @@ def get_lyrics_process(session):
     print('get lyrics process')
     sub_query = session.query(Lyrics.song_id)
     songs = session.query(Song).filter(~Song.id.in_(sub_query)).all()
+
     for song in songs:
         lyrics = get_lyrics(song)
         lyrics.add(session, commit=True)
@@ -78,7 +80,8 @@ def map_lyrics_process(session):
     lyrics_list = session.query(Lyrics).filter(Lyrics.archived == 0).all()
 
     for lyrics in lyrics_list:
-        map_lyrics_ = map_lyrics(lyrics)
+        map_lyrics(lyrics)
+        # map_lyrics_ = map_lyrics(lyrics)
         # adjust_lyrics(map_lyrics_)
 
 
@@ -105,8 +108,9 @@ def create_aeps_process(session, channel):
 
     for aep in aeps2 + aeps1:
         # TODO: maybe it s better to add channel to aep model
-        top_commentators = get_top_commentators(channel, 3)
-        aep = create_aep(aep, top_commentators)
+        if not aep.path.exists:
+            top_commentators = get_top_commentators(channel, 3)
+            aep = create_aep(aep, top_commentators)
         RenderQueue(aep).add(session, commit=True, id=aep.id)
 
 
@@ -128,6 +132,7 @@ def render_aeps_process(session, queue: Queue, condition: Condition):
     6 - add it to the local upload_queue
     7 - notify the upload queue process that we added a video into his queue
     """
+    print('Rendring videos ...')
     render_queue_items = session.query(RenderQueue).all()
     channel = session.query(Channel).filter(Channel.name == 'ncs arabi').one()
     print(f'{len(render_queue_items)} item in render queue')
@@ -173,22 +178,25 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
                 print('upload videos done')
                 if upload_queue_item:
                     print('shuting down PC ...')
-                    import os
-                    os.system('shutdown -s')
+                    from os import system
+                    system('shutdown -s')
                 return
             upload_queue_item = session.merge(upload_queue_item)
             video, channel = upload_queue_item.video, upload_queue_item.channel
             try:
                 print(f'uploading the {video_index} video : {video.path}')
                 song = video.aep.lyrics.song
-                uploaded_video = upload_video(video, channel,
-                                              title=generate_title(song.title),
-                                              description=generate_desc(song.title, song.credit),
-                                              tags=generate_tags(song.title, song.tags),
-                                              publish_at=channel.next_publish_date(session))
+                uploaded_video = upload_video(
+                    video, channel,
+                    title=generate_title(song.title),
+                    description=generate_desc(song.title, song.credit),
+                    tags=generate_tags(song.title, song.tags),
+                    publish_at=channel.next_publish_date(session)
+                    # privacy='private'
+                )
                 try:
                     comment_to_origin(channel.token_path,
-                                      generate_comment_from_lyrics(song.lyrics.path),
+                                      generate_comment_from_lyrics(song.lyrics),
                                       song.id)
                 except Exception as e:
                     print(e.__class__)
@@ -201,10 +209,12 @@ def upload_video_process(upload_queue: Queue, condition: Condition):
             except ConnectionResetError as e:
                 print(e.__class__)
                 print(e)
+                raise ConnectionResetError
 
 
 def main():
     queue = Queue()
+
     condition = Condition()
     songs_urls = []
     backgrounds_urls = []
@@ -222,9 +232,11 @@ def main():
         channel = session.query(Channel).filter(Channel.name == 'ncs arabi').one()
         for item in upload_queue:
             queue.put(item)
-        if input('parallel videos upload? (y, n) (default n) : ') == 'y':
-            uploading_process.start()
+
         shutdown = input('shutdown pc at the end of process? (y, n) (default n)') in ('y', 'yes')
+
+        if input('parallel videos upload? (y, n) (default n) : ') in ('y', 'yes'):
+            uploading_process.start()
 
         try:
             register_backgrounds_process(session, backgrounds_urls)
@@ -250,5 +262,8 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
+        print(e.__str__())
         traceback.print_exc()
         logging.exception(f'\n--------- An exception was raised :: {datetime.now.__str__()} ----------')
+        input('an exception has occurred')
+

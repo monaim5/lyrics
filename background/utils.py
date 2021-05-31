@@ -13,7 +13,7 @@ def download_background(background):
     """parameter must include {url: str, file_exists: bool, path: Path} """
     if background.path is None:
         assert len(background.url) > 40
-        background.path: Path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
+        background.path = (Dir.backgrounds_dir.value / background.url[-50:-4]).with_suffix('.jpg')
     if background.file_exists:
         return background
 
@@ -30,17 +30,21 @@ def download_background(background):
         image_type = re.search('image/(.*)', image_type).group(1)
         ext = '.' + ('jpg' if image_type == 'jpeg' else image_type)
         background.path = background.path.with_suffix(ext)
-
         request.urlretrieve(background.url, background.path)
 
         return background
 
     def get_bg_from_pexels():
-        id_ = re.search(r'(.*)-(?P<id>[0-9]+)/', background.url)
-        url_ = 'https://www.pexels.com/photo/%s/download' % id_.group('id')
+
+        query = background.url.split('/')[-2 if background.url.endswith('/') else -1]
+        id_ = re.search(r'.*-(?P<id>[0-9]+)$', query).group('id')
+        background.path = (Dir.backgrounds_dir.value / query).with_suffix('.jpg')
+
+        url_ = f'https://www.pexels.com/photo/{id_}/download'
         opener = request.build_opener()
         opener.addheaders = [('User-agent', 'Mozilla/5.0')]
         request.install_opener(opener)
+
         request.urlretrieve(url_, background.path)
         return background
 

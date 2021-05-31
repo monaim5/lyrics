@@ -7,9 +7,13 @@ from pathlib import Path
 from apiclient.discovery import build
 from typing import List
 
+from bs4 import BeautifulSoup
+from googleapiclient.discovery import Resource
+from urllib3 import HTTPResponse
+
 from background.utils import download_background
-from models import Background, get_session, UploadedVideo
-from paths import Dir, File
+from models import Background
+from paths import Dir
 
 
 class YoutubeApiManager:
@@ -119,6 +123,41 @@ def get_playlist_videos(playlist_id, api_key):
 def get_channel_uploads(channel_id, api_key):
     uploads_playlist_id = get_uploads_playlist_id(channel_id, api_key)
     return get_playlist_videos(uploads_playlist_id, api_key)
+
+
+def scrape_tags_by_id(video_id):
+    from urllib3 import PoolManager
+    url = f'http://www.youtube.com/watch?v={video_id}'
+    http = PoolManager()
+    print(f'GET tags for url: {url} ...')
+    resp: HTTPResponse = http.request('GET', url)
+
+    soup = BeautifulSoup(resp.data, 'html.parser')
+    return list(map(lambda x: x.strip(), soup.find('meta', {'name': 'keywords'}).get('content').split(',')))
+
+
+def search_videos_by_keyword(keyword, api_key):
+    api = YoutubeApiManager.api_by_api_key(api_key)
+    request = api.search().list(
+        part='snippet',
+        q=keyword,
+        maxResults=25,
+    )
+    videos = request.execute()
+    for v in videos['items']:
+        try:
+            v['snippet']['tags'] = scrape_tags_by_id(v['id']['videoId'])
+        except Exception as e:
+            print(e.__str__())
+    return videos
+
+
+def register_searched_videos(videos: dict, name, folder):
+    directory: Path = Dir.scrapped_youtube_videos_data.value / folder if folder else Dir.scrapped_youtube_videos_data.value
+    if not directory.exists():
+        directory.mkdir()
+    with open(directory / f'{name}_videos.json', 'w', encoding='utf-8') as f:
+        json.dump(videos, f, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def register_videos(videos: List, folder):

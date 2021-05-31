@@ -1,6 +1,7 @@
 import json
 import re
 import time
+import webbrowser
 
 import googletrans
 from google_trans_new import google_translator
@@ -8,6 +9,8 @@ from selenium import webdriver
 import requests
 from bs4 import BeautifulSoup
 import tkinter as tk
+
+from selenium.common.exceptions import NoSuchElementException
 
 from lyrics.gui import MappingConsole, AdjustmentConsole
 from models import Song, Lyrics, MapLyrics
@@ -28,48 +31,56 @@ def get_lyrics(song: Song) -> Lyrics:
         "Accept-Encoding": "gzip, deflate, br",
         "Accept-Language": "en-US,en;q=0.9",
     }
-    title = re.sub('\(.*\)', '', song.title)
-    title = re.sub('\[.*\]', '', title)
-    q = re.sub('\[.*\]|\.', '', title).strip().replace(' ', '%20')
+    title = re.sub(r'\(.*\)', '', song.title)
+    title = re.sub(r'\[.*]', '', title)
+    lyrics = []
+
+    q = re.sub(r'\[.*]|\.', '', title).strip().replace(' ', '%20')
     url = f'https://www.musixmatch.com/search/{q}'
     chrome_options = webdriver.ChromeOptions()
     chrome_options.binary_location = Binary.chrome_binary.value.__str__()
     driver = webdriver.Chrome(executable_path=Binary.chrome_driver.value.__str__(), chrome_options=chrome_options)
     driver.get(url)
-    driver.find_element_by_xpath(
-        '//*[@id="search-all-results"]/div[1]/div[1]/div[2]/div/ul/li/div/div[2]/div/h2/a') \
-        .click()
+    try:
+        driver.find_element_by_xpath(
+            '//*[@id="search-all-results"]/div[1]/div[1]/div[2]/div/ul/li/div/div[2]/div/h2/a') \
+            .click()
 
-    url = driver.current_url + '/translation/arab'
-    driver.quit()
-    res = requests.get(url, headers=headers)
-    soup = BeautifulSoup(res.text, 'html.parser')
-    row = soup.select('.mxm-translatable-line-readonly .row')
-    lyrics = []
-    i = 1
-    translator2 = google_translator()
-    translator1 = googletrans.Translator()
-    for line in row:
-        if line.select('div')[0] is not None and len(line.select('div')[0].text) > 1:
-            text_en = line.select('div')[0].text
-        else:
-            text_en = '/'
-        if line.select_one('.text-right') is not None and len(line.select_one('.text-right').text) > 1:
-            text_ar = line.select_one('.text-right').text
-        else:
-            # try:
-            text_ar = translator1.translate(text_en, src='en', dest='ar').text.strip()
-            # except google_new_transError:
-            #     text_ar = translator2.translate(text_en, lang_tgt='ar').strip()
-            # except Exception as e:
-            #     print()
-            #     text_ar = '/'
-        if text_en != '/' or text_ar != '/':
-            lyrics.append({'text_en': text_en, 'text_ar': text_ar})
-            i += 1
+    except NoSuchElementException as e:
+        print(e.__str__())
+        driver.quit()
+
+    else:
+        url = driver.current_url + '/translation/arab'
+        driver.quit()
+        res = requests.get(url, headers=headers)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        row = soup.select('.mxm-translatable-line-readonly .row')
+        i = 1
+        translator2 = google_translator()
+        translator1 = googletrans.Translator()
+        for line in row:
+            if line.select('div')[0] is not None and len(line.select('div')[0].text) > 1:
+                text_en = line.select('div')[0].text
+            else:
+                text_en = '/'
+            if line.select_one('.text-right') is not None and len(line.select_one('.text-right').text) > 1:
+                text_ar = line.select_one('.text-right').text
+            else:
+                # try:
+                text_ar = translator1.translate(text_en, src='en', dest='ar').text.strip()
+                # except google_new_transError:
+                #     text_ar = translator2.translate(text_en, lang_tgt='ar').strip()
+                # except Exception as e:
+                #     print()
+                #     text_ar = '/'
+            if text_en != '/' or text_ar != '/':
+                lyrics.append({'text_en': text_en, 'text_ar': text_ar})
+                i += 1
 
     if len(lyrics) < 5:
         lyrics_ = build_lyrics_from_text(song)
+
     else:
         if not lyrics_.path.parent.exists():
             lyrics_.path.parent.mkdir()
@@ -100,9 +111,13 @@ def map_lyrics(lyrics: Lyrics) -> MapLyrics:
     root.bind('<BackSpace>', console.on_backspace_press)
     root.bind('<KeyRelease-BackSpace>', console.on_backspace_release)
     console.pack()
-    root.focus_force()
     console.start_time = time.perf_counter()
+
+    root.focus_force()
+    root.wm_attributes("-topmost", 1)
+
     root.mainloop()
+
     return map_lyrics_
 
 
@@ -124,14 +139,18 @@ def build_lyrics_from_text(song: Song) -> Lyrics:
         lyrics_.path.parent.mkdir()
 
     lyrics_.path.touch()
-    input('past the lyrics in the lyrics file ')
+    webbrowser.open(lyrics_.path.resolve().__str__())
+
+    input(f'could not find the lyrics of : {lyrics_.song.title}\nsearch the lyrics in another'
+          f'place and then past it in the lyrics.json file when you\'re ready press enter ')
+
     with open(lyrics_.path) as f:
         lyrics = f.read().splitlines()
     print('translating ...')
     new_lyrics = []
-    translator = google_translator()
+    translator = googletrans.Translator()
     for line in lyrics:
-        text_ar = translator.translate(line, lang_tgt='ar').strip()
+        text_ar = translator.translate(line, src='en', dest='ar').text.strip()
         new_lyrics.append({'text_en': line, 'text_ar': text_ar})
     print(new_lyrics)
     with open(lyrics_.path, 'w+', encoding='utf-8') as f:
